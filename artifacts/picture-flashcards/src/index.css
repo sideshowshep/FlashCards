@@ -440,6 +440,8 @@
 
   body {
     min-width: 320px;
+    touch-action: pan-y;
+    overscroll-behavior: none;
     background:
       radial-gradient(circle at 12% 8%, hsl(42 76% 59% / 0.12), transparent 25rem),
       hsl(var(--background));
@@ -453,6 +455,16 @@
     outline: 3px solid hsl(var(--accent) / 0.65);
     outline-offset: 3px;
   }
+}
+
+html,
+body,
+#root {
+  touch-action: pan-y;
+}
+
+.ReactCrop {
+  touch-action: none;
 }
 
 @keyframes lift-in {

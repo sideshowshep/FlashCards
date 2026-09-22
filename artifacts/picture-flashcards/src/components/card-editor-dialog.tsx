@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ImagePlus, LoaderCircle, X } from 'lucide-react';
+import ReactCrop, {
+  centerCrop,
+  makeAspectCrop,
+  type Crop as ImageCrop,
+  type PercentCrop,
+} from 'react-image-crop';
 import {
   getGetCardsSummaryQueryKey,
   getListCardsQueryKey,
@@ -8,6 +14,7 @@ import {
   useUpdateCard,
 } from '@workspace/api-client-react';
 import type { Card } from '@workspace/api-client-react';
+import 'react-image-crop/dist/ReactCrop.css';
 
 type CardEditorDialogProps = {
   open: boolean;
@@ -16,22 +23,32 @@ type CardEditorDialogProps = {
   onSaved: () => void;
 };
 
-type ImageSize = { width: number; height: number };
+const PORTRAIT_ASPECT = 4 / 5;
 
-function getCrop(imageSize: ImageSize, zoom: number, focusX: number, focusY: number) {
-  const aspect = 4 / 5;
-  const baseWidth =
-    imageSize.width / imageSize.height >= aspect
-      ? imageSize.height * aspect
-      : imageSize.width;
-  const baseHeight = baseWidth / aspect;
-  const width = baseWidth / zoom;
-  const height = baseHeight / zoom;
+function readAsDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else reject(new Error('The image could not be read.'));
+    };
+    reader.onerror = () => reject(new Error('The image could not be read.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function getNaturalCrop(
+  crop: ImageCrop | undefined,
+  image: HTMLImageElement | null,
+) {
+  if (!crop || !image?.naturalWidth || !image.naturalHeight) return undefined;
+  const scaleX = crop.unit === '%' ? image.naturalWidth / 100 : image.naturalWidth / image.width;
+  const scaleY = crop.unit === '%' ? image.naturalHeight / 100 : image.naturalHeight / image.height;
   return {
-    x: (imageSize.width - width) * focusX,
-    y: (imageSize.height - height) * focusY,
-    width,
-    height,
+    x: crop.x * scaleX,
+    y: crop.y * scaleY,
+    width: crop.width * scaleX,
+    height: crop.height * scaleY,
   };
 }
 
@@ -43,10 +60,8 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
   const [imageData, setImageData] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [fileLabel, setFileLabel] = useState('');
-  const [imageSize, setImageSize] = useState<ImageSize>();
-  const [zoom, setZoom] = useState(1);
-  const [focusX, setFocusX] = useState(0.5);
-  const [focusY, setFocusY] = useState(0.5);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const [crop, setCrop] = useState<ImageCrop>();
   const [error, setError] = useState('');
   const createCard = useCreateCard();
   const updateCard = useUpdateCard();
@@ -60,16 +75,13 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
     setImageData('');
     setPreviewUrl(card?.imageUrl ?? '');
     setFileLabel('');
-    setImageSize(undefined);
-    setZoom(1);
-    setFocusX(0.5);
-    setFocusY(0.5);
+    setCrop(undefined);
     setError('');
   }, [card, open]);
 
   if (!open) return null;
 
-  const handleFile = (file?: File) => {
+  const handleFile = async (file?: File) => {
     if (!file) return;
     const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || /\.(heic|heif)$/i.test(file.name);
     if (!file.type.startsWith('image/') && !isHeic) {
@@ -81,24 +93,32 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
       return;
     }
     setFileLabel(file.name);
-    setImageSize(undefined);
-    setZoom(1);
-    setFocusX(0.5);
-    setFocusY(0.5);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      setImageData(result);
-      setPreviewUrl(isHeic ? '' : result);
-      if (!isHeic && result) {
-        const image = new window.Image();
-        image.onload = () => setImageSize({ width: image.naturalWidth, height: image.naturalHeight });
-        image.src = result;
+    setCrop(undefined);
+    try {
+      let previewBlob: Blob = file;
+      if (isHeic) {
+        const { default: heic2any } = await import('heic2any');
+        const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+        previewBlob = Array.isArray(converted) ? converted[0] : converted;
       }
+      const result = await readAsDataUrl(previewBlob);
+      setImageData(result);
+      setPreviewUrl(result);
       setError('');
-    };
-    reader.onerror = () => setError('The image could not be read. Try again.');
-    reader.readAsDataURL(file);
+    } catch {
+      if (isHeic) {
+        try {
+          const result = await readAsDataUrl(file);
+          setImageData(result);
+          setPreviewUrl('');
+          setError('HEIC preview is unavailable here, but the original will be converted when saved.');
+        } catch {
+          setError('The image could not be read. Try again.');
+        }
+      } else {
+        setError('The image could not be read. Try again.');
+      }
+    }
   };
 
   const refreshCatalogue = () => {
@@ -119,7 +139,9 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
       return;
     }
     setError('');
-    const crop = imageData && imageSize ? getCrop(imageSize, zoom, focusX, focusY) : undefined;
+    const selectedCrop = imageData && previewUrl
+      ? getNaturalCrop(crop, imageRef.current)
+      : undefined;
     if (card) {
       updateCard.mutate(
         {
@@ -128,7 +150,7 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
             title: trimmedTitle,
             category: trimmedCategory || null,
             ...(imageData ? { imageData } : {}),
-            ...(crop ? { crop } : {}),
+            ...(selectedCrop ? { crop: selectedCrop } : {}),
           },
         },
         {
@@ -146,7 +168,7 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
             title: trimmedTitle,
             category: trimmedCategory || null,
             imageData,
-            ...(crop ? { crop } : {}),
+            ...(selectedCrop ? { crop: selectedCrop } : {}),
           },
         },
         {
@@ -188,77 +210,88 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
             <label className="mb-2 block font-mono text-[0.66rem] font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]" htmlFor="card-image">
               Picture
             </label>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="group relative block aspect-[4/5] w-full overflow-hidden rounded-[18px] border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--muted)/.65)] text-left transition-colors hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent)/.12)]"
-              data-testid="button-upload-image"
-            >
-              {previewUrl ? (
-                <>
-                  <div className="relative h-full w-full overflow-hidden">
-                    {imageSize && imageData ? (
-                      <img
-                        src={previewUrl}
-                        alt="Selected card preview"
-                        className="absolute max-w-none"
-                        style={(() => {
-                          const crop = getCrop(imageSize, zoom, focusX, focusY);
-                          return {
-                            width: `${(imageSize.width / crop.width) * 100}%`,
-                            height: `${(imageSize.height / crop.height) * 100}%`,
-                            left: `-${(crop.x / crop.width) * 100}%`,
-                            top: `-${(crop.y / crop.height) * 100}%`,
-                          };
-                        })()}
-                        data-testid="img-card-preview"
-                      />
-                    ) : (
-                      <img src={previewUrl} alt="Selected card preview" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" data-testid="img-card-preview" />
-                    )}
-                    {imageData && <span className="pointer-events-none absolute inset-0 border-[3px] border-[hsl(var(--card)/.82)]" />}
-                  </div>
-                  <span className="absolute bottom-3 right-3 rounded-full bg-[hsl(var(--foreground)/.78)] px-3 py-1.5 font-mono text-[0.6rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--card))]">
-                    Replace image
-                  </span>
-                </>
+            <div className="group relative flex min-h-80 w-full items-center justify-center overflow-hidden rounded-[18px] border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--muted)/.65)] text-left transition-colors hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent)/.12)]">
+              {previewUrl && imageData ? (
+                <ReactCrop
+                  crop={crop}
+                  onChange={(_, percentCrop: PercentCrop) => setCrop(percentCrop)}
+                  onComplete={(_, percentCrop: PercentCrop) => setCrop(percentCrop)}
+                  aspect={PORTRAIT_ASPECT}
+                  keepSelection
+                  minWidth={60}
+                  minHeight={75}
+                  className="max-h-[52dvh] max-w-full"
+                  data-testid="image-crop-tool"
+                >
+                  <img
+                    ref={imageRef}
+                    src={previewUrl}
+                    alt="Select the part of the picture to keep"
+                    className="block max-h-[52dvh] max-w-full object-contain"
+                    onLoad={(event) => {
+                      const { width, height } = event.currentTarget;
+                      setCrop(
+                        centerCrop(
+                          makeAspectCrop(
+                            { unit: '%', width: 80 },
+                            PORTRAIT_ASPECT,
+                            width,
+                            height,
+                          ),
+                          width,
+                          height,
+                        ),
+                      );
+                    }}
+                    data-testid="img-card-preview"
+                  />
+                </ReactCrop>
+              ) : previewUrl ? (
+                <img
+                  ref={imageRef}
+                  src={previewUrl}
+                  alt="Selected card preview"
+                  className="max-h-[52dvh] max-w-full object-contain"
+                  data-testid="img-card-preview"
+                />
               ) : imageData ? (
-                <span className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+                <div className="flex min-h-80 flex-col items-center justify-center gap-2 px-6 text-center">
                   <ImagePlus size={26} strokeWidth={1.5} className="text-[hsl(var(--primary))]" />
                   <span className="font-medium text-[hsl(var(--foreground))]">HEIC image ready</span>
                   <span className="max-w-xs text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{fileLabel || 'The server will convert this image for playback.'}</span>
                   <span className="rounded-full bg-[hsl(var(--foreground)/.08)] px-3 py-1 font-mono text-[0.58rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--muted-foreground))]">Converted when saved</span>
-                </span>
+                </div>
               ) : (
-                <span className="flex h-full flex-col items-center justify-center gap-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex min-h-80 w-full flex-col items-center justify-center gap-2 text-center"
+                  data-testid="button-upload-image"
+                >
                   <ImagePlus size={26} strokeWidth={1.5} className="text-[hsl(var(--primary))]" />
                   <span className="font-medium text-[hsl(var(--foreground))]">Choose a clear, real picture</span>
                   <span className="text-xs text-[hsl(var(--muted-foreground))]">JPG, PNG, WEBP, or HEIC · up to 8 MB</span>
-                </span>
+                </button>
               )}
-            </button>
+              {(previewUrl || imageData) && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute bottom-3 right-3 rounded-full bg-[hsl(var(--foreground)/.78)] px-3 py-1.5 font-mono text-[0.6rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--card))]"
+                  data-testid="button-replace-image"
+                >
+                  Replace image
+                </button>
+              )}
+            </div>
             <input ref={fileInputRef} id="card-image" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif" className="sr-only" onChange={(event) => handleFile(event.target.files?.[0])} data-testid="input-image-upload" />
-            <p className="mt-2 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">The fixed portrait frame matches playback. Use the controls below to choose what stays in view. HEIC photos are converted on the server.</p>
+            <p className="mt-2 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">Drag the crop box over the picture and use its handles to resize it. The portrait shape stays fixed at 4:5. HEIC photos are converted for editing and saved as JPEG.</p>
           </div>
 
-          {imageData && imageSize && (
-            <div className="space-y-3 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/.35)] p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-mono text-[0.64rem] font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">Frame the portrait crop</p>
-                <span className="text-xs text-[hsl(var(--muted-foreground))]">Drag the sliders</span>
-              </div>
-              <label className="grid grid-cols-[5rem_1fr] items-center gap-3 text-sm">
-                <span>Zoom</span>
-                <input type="range" min="1" max="3" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} aria-label="Picture zoom" />
-              </label>
-              <label className="grid grid-cols-[5rem_1fr] items-center gap-3 text-sm">
-                <span>Across</span>
-                <input type="range" min="0" max="1" step="0.01" value={focusX} onChange={(event) => setFocusX(Number(event.target.value))} aria-label="Picture horizontal position" />
-              </label>
-              <label className="grid grid-cols-[5rem_1fr] items-center gap-3 text-sm">
-                <span>Up / down</span>
-                <input type="range" min="0" max="1" step="0.01" value={focusY} onChange={(event) => setFocusY(Number(event.target.value))} aria-label="Picture vertical position" />
-              </label>
+          {imageData && previewUrl && (
+            <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/.35)] p-4 text-sm text-[hsl(var(--muted-foreground))]">
+              <strong className="font-semibold text-[hsl(var(--foreground))]">Portrait crop</strong>
+              <span className="ml-2">Drag inside the box to move it. Drag a corner or edge handle to resize it.</span>
             </div>
           )}
 
