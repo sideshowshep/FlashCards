@@ -31,6 +31,7 @@ export default function Playback() {
   const [playing, setPlaying] = useState(false);
   const [playbackOrder, setPlaybackOrder] = useState<Card[]>([]);
   const [playbackIndex, setPlaybackIndex] = useState(0);
+  const [loadedPlaybackCardId, setLoadedPlaybackCardId] = useState<string | null>(null);
   const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef(0);
@@ -199,19 +200,21 @@ export default function Playback() {
               animate="center"
               exit="exit"
               transition={{ type: 'spring', stiffness: 360, damping: 34, mass: 0.8 }}
-              className="absolute inset-0 flex flex-col items-center justify-center"
+              className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-150 ${loadedPlaybackCardId === playbackCard.id ? 'opacity-100' : 'opacity-0'}`}
             >
               <img
                 src={playbackCard.imageUrl}
                 alt=""
-                className="max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)]"
+                onLoad={() => setLoadedPlaybackCardId(playbackCard.id)}
+                onError={() => setLoadedPlaybackCardId(playbackCard.id)}
+                className="max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] shrink-0 rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)]"
               />
               <FittedSingleLineTitle
                 text={formatCardText(playbackCard.title, selectedTextCase)}
                 level={1}
-                maxFontSize={72}
-                minFontSize={24}
-                className="mt-5 w-full max-w-[92vw] text-center font-bold leading-tight tracking-[-0.025em]"
+                maxFontSize={64}
+                minFontSize={16}
+                className="mt-5 w-full max-w-[92vw] shrink-0 text-center font-bold leading-tight tracking-[-0.025em]"
               />
             </motion.div>
           </AnimatePresence>
