@@ -26,6 +26,7 @@ function categoryKey(category: string | null | undefined) {
 }
 
 const UNCATEGORISED_CATEGORY_KEY = '__uncategorised__';
+const PLAYBACK_REMINDER_DELAY = 1400;
 
 function selectedCategoryKey(category: string | null | undefined) {
   return categoryKey(category) || UNCATEGORISED_CATEGORY_KEY;
@@ -115,7 +116,10 @@ export default function Playback() {
     const cardsInSet = (cardsQuery.data ?? []).filter((item) => (
       selectedCategoryKeys.includes(selectedCategoryKey(item.category))
     ));
-    startPlaybackWithCards(cardsInSet);
+    const reminderTimer = window.setTimeout(() => {
+      startPlaybackWithCards(cardsInSet);
+    }, PLAYBACK_REMINDER_DELAY);
+    return () => window.clearTimeout(reminderTimer);
   }, [cardsQuery.data, cardsQuery.isLoading, playbackOrder.length, playing, selectedCategoryKeys]);
 
   const isLoading = cardsQuery.isLoading || randomQuery.isLoading;
@@ -127,7 +131,9 @@ export default function Playback() {
         className="playback-focus fixed inset-0 z-50 grid min-h-[100dvh] place-items-center bg-[hsl(var(--background))] text-[hsl(var(--foreground))]"
         aria-label="Preparing picture playback"
       >
-        <span className="h-3 w-3 animate-pulse rounded-full bg-[hsl(var(--secondary))]" />
+        <p className="px-6 text-center font-mono text-sm font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]" data-testid="text-playback-stop-reminder">
+          Double tap to stop playback
+        </p>
       </main>
     );
   }
@@ -135,7 +141,7 @@ export default function Playback() {
   if (playing && playbackCard) {
     return (
       <main
-        className="playback-focus playback-education-font fixed inset-0 z-50 flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-[hsl(var(--background))] px-5 py-6 text-[hsl(var(--foreground))]"
+        className="playback-focus playback-education-font relative fixed inset-0 z-50 flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-[hsl(var(--background))] px-5 py-6 text-[hsl(var(--foreground))]"
         aria-label="Picture playback"
         onTouchStart={(event) => {
           if (event.touches.length !== 1) {
