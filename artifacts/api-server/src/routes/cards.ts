@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { Router, type IRouter } from "express";
 import {
   CreateCardBody,
@@ -36,7 +37,11 @@ router.get("/cards/images/:filename", async (req, res, next) => {
       res.status(404).json({ error: "Image not found" });
       return;
     }
-    res.sendFile(imagePath);
+    const image = await readFile(imagePath);
+    res
+      .type("image/jpeg")
+      .set("Cache-Control", "no-cache")
+      .send(image);
   } catch (error) {
     next(error);
   }
