@@ -1,2 +1,3 @@
 - [Generated client DOM types](generated-client-dom-types.md) — include DOM iterable typings for Orval fetch helpers.
 - [Raspberry Pi image serving](pi-image-serving.md) — use direct JPEG reads because sendFile returned 404 for existing Pi uploads.
+- [iOS playback image readiness](ios-playback-image-readiness.md) — avoid display-none preloaders; pair image/title reveal with the exact card-transition readiness key.

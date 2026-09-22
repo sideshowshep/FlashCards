@@ -38,7 +38,7 @@ export default function Playback() {
   const [playbackOrder, setPlaybackOrder] = useState<Card[]>([]);
   const [playbackIndex, setPlaybackIndex] = useState(0);
   const [playbackToken, setPlaybackToken] = useState(0);
-  const [loadedPlaybackToken, setLoadedPlaybackToken] = useState<number | null>(null);
+  const [loadedPlaybackKey, setLoadedPlaybackKey] = useState<string | null>(null);
   const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef(0);
@@ -106,7 +106,7 @@ export default function Playback() {
     setPlaybackIndex(0);
     setSlideDirection(1);
     setPlaybackToken(nextToken);
-    setLoadedPlaybackToken(null);
+    setLoadedPlaybackKey(null);
     setPlaying(!waitForFirstImage);
   };
 
@@ -130,7 +130,7 @@ export default function Playback() {
     if (playing || !playbackOrder[0]) return;
     const image = preparedImageRef.current;
     if (image?.complete && image.naturalWidth > 0) {
-      setLoadedPlaybackToken(playbackToken);
+      setLoadedPlaybackKey(`${playbackOrder[0].id}:${playbackToken}`);
       setPlaying(true);
     }
   }, [playing, playbackOrder[0]?.id, playbackToken]);
@@ -139,7 +139,7 @@ export default function Playback() {
     if (!playing || !playbackCard) return;
     const image = playbackImageRef.current;
     if (image?.complete && image.naturalWidth > 0) {
-      setLoadedPlaybackToken(playbackToken);
+      setLoadedPlaybackKey(`${playbackCard.id}:${playbackToken}`);
     }
   }, [playing, playbackCard?.id, playbackToken]);
 
@@ -160,7 +160,7 @@ export default function Playback() {
             aria-hidden="true"
             className="pointer-events-none absolute h-px w-px opacity-0"
             onLoad={() => {
-              setLoadedPlaybackToken(playbackToken);
+              setLoadedPlaybackKey(`${playbackOrder[0].id}:${playbackToken}`);
               setPlaying(true);
             }}
           />
@@ -235,10 +235,10 @@ export default function Playback() {
                 ref={playbackImageRef}
                 src={playbackCard.imageUrl}
                 alt=""
-                onLoad={() => setLoadedPlaybackToken(playbackToken)}
-                className={`max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] shrink-0 rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)] ${loadedPlaybackToken === playbackToken ? '' : 'invisible'}`}
+                onLoad={() => setLoadedPlaybackKey(`${playbackCard.id}:${playbackToken}`)}
+                className={`max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] shrink-0 rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)] ${loadedPlaybackKey === `${playbackCard.id}:${playbackToken}` ? '' : 'invisible'}`}
               />
-              {loadedPlaybackToken === playbackToken && (
+              {loadedPlaybackKey === `${playbackCard.id}:${playbackToken}` && (
                 <FittedSingleLineTitle
                   text={formatCardText(playbackCard.title, selectedTextCase)}
                   level={1}
