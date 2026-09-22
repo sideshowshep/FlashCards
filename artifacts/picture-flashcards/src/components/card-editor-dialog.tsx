@@ -285,15 +285,7 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
               )}
             </div>
             <input ref={fileInputRef} id="card-image" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif" className="sr-only" onChange={(event) => handleFile(event.target.files?.[0])} data-testid="input-image-upload" />
-            <p className="mt-2 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">Drag the crop box over the picture and use its handles to resize it. The portrait shape stays fixed at 4:5. HEIC photos are converted for editing and saved as JPEG.</p>
           </div>
-
-          {imageData && previewUrl && (
-            <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/.35)] p-4 text-sm text-[hsl(var(--muted-foreground))]">
-              <strong className="font-semibold text-[hsl(var(--foreground))]">Portrait crop</strong>
-              <span className="ml-2">Drag inside the box to move it. Drag a corner or edge handle to resize it.</span>
-            </div>
-          )}
 
           <div className="grid gap-5 sm:grid-cols-[1fr_0.72fr]">
             <label className="block">
