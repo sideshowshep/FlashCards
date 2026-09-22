@@ -160,7 +160,7 @@ export default function Playback() {
     <main className="paper-grain min-h-[100dvh] overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-[1440px] flex-col px-5 py-5 sm:px-8 sm:py-7 lg:px-12">
         <header className="flex items-center justify-between">
-          <BrandMark />
+          <BrandMark to="/practice" />
           <div className="flex items-center gap-3">
             <span className="hidden font-mono text-[0.6rem] font-bold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))] sm:inline">a quiet moment to notice</span>
             <Link href="/admin" className="grid h-9 w-9 place-items-center rounded-full text-[hsl(var(--muted-foreground)/.5)] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label="Adult access" title="Adult access" data-testid="link-adult-access">

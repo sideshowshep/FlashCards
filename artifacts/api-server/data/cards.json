@@ -25,5 +25,14 @@
     "imageFile": "7bee8f00-99cb-44f5-ad89-5189298deaaa.jpg",
     "createdAt": "2026-09-22T16:02:43.294Z",
     "updatedAt": "2026-09-22T16:02:43.294Z"
+  },
+  {
+    "id": "91891c82-0779-45ed-a0ed-ca3303121c01",
+    "title": "Alan",
+    "category": "People",
+    "imageUrl": "/api/cards/images/91891c82-0779-45ed-a0ed-ca3303121c01.jpg",
+    "imageFile": "91891c82-0779-45ed-a0ed-ca3303121c01.jpg",
+    "createdAt": "2026-09-22T16:56:26.889Z",
+    "updatedAt": "2026-09-22T16:56:26.889Z"
   }
 ]

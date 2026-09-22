@@ -30,6 +30,18 @@ export default function Admin() {
     () => Array.from(new Set(cards.map((card) => card.category).filter((value): value is string => Boolean(value)))).sort(),
     [cards],
   );
+  const groupedCards = useMemo(() => {
+    const groups = new Map<string, Card[]>();
+    for (const card of cards) {
+      const group = card.category?.trim() || 'Uncategorized';
+      groups.set(group, [...(groups.get(group) ?? []), card]);
+    }
+    return Array.from(groups.entries()).sort(([left], [right]) => {
+      if (left === 'Uncategorized') return 1;
+      if (right === 'Uncategorized') return -1;
+      return left.localeCompare(right);
+    });
+  }, [cards]);
 
   const openCreate = () => {
     setEditingCard(null);
@@ -74,7 +86,7 @@ export default function Admin() {
               <span className={`h-2 w-2 rounded-full ${healthQuery.isError ? 'bg-[hsl(var(--destructive))]' : 'bg-[hsl(var(--secondary))]'}`} />
               {healthQuery.isLoading ? 'Checking shelf' : healthQuery.isError ? 'Offline' : 'Shared shelf ready'}
             </div>
-            <Link href="/" className="rounded-full border border-[hsl(var(--border))] px-3.5 py-2 font-mono text-[0.6rem] font-bold uppercase tracking-[0.13em] text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--card))] hover:text-[hsl(var(--foreground))]" data-testid="link-open-practice">
+            <Link href="/practice" className="rounded-full border border-[hsl(var(--border))] px-3.5 py-2 font-mono text-[0.6rem] font-bold uppercase tracking-[0.13em] text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--card))] hover:text-[hsl(var(--foreground))]" data-testid="link-open-practice">
               Open practice
             </Link>
           </div>
@@ -140,24 +152,34 @@ export default function Admin() {
               <button type="button" onClick={openCreate} className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))]" data-testid="button-empty-add-card"><Plus size={16} /> Add picture</button>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {cards.map((card) => (
-                <article key={card.id} className="group overflow-hidden rounded-[20px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-[0_8px_22px_hsl(var(--foreground)/.045)] transition-transform duration-300 hover:-translate-y-1" data-testid={`card-catalogue-${card.id}`}>
-                  <div className="relative aspect-[4/5] overflow-hidden bg-[hsl(var(--muted))]">
-                    <img src={card.imageUrl} alt={card.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" data-testid={`img-catalogue-${card.id}`} />
-                    {card.category && <span className="absolute left-3 top-3 rounded-full bg-[hsl(var(--card)/.9)] px-2.5 py-1 font-mono text-[0.57rem] font-bold uppercase tracking-[0.13em] text-[hsl(var(--primary))]">{card.category}</span>}
+            <div className="space-y-10">
+              {groupedCards.map(([group, groupCards]) => (
+                <section key={group} aria-labelledby={`category-${group.replace(/\s+/g, '-').toLowerCase()}`}>
+                  <div className="mb-4 flex items-center gap-3">
+                    <h3 id={`category-${group.replace(/\s+/g, '-').toLowerCase()}`} className="font-serif text-2xl font-semibold tracking-[-0.04em]">{group}</h3>
+                    <span className="rounded-full bg-[hsl(var(--muted))] px-2.5 py-1 font-mono text-[0.58rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--muted-foreground))]">{groupCards.length}</span>
                   </div>
-                  <div className="flex items-center justify-between gap-3 p-4">
-                    <div className="min-w-0">
-                      <h3 className="truncate font-serif text-xl font-semibold tracking-[-0.035em]" data-testid={`text-card-title-${card.id}`}>{card.title}</h3>
-                      <p className="mt-1 font-mono text-[0.58rem] uppercase tracking-[0.12em] text-[hsl(var(--muted-foreground))]">{card.category ?? 'Uncategorized'}</p>
-                    </div>
-                    <div className="flex shrink-0 gap-1">
-                      <button type="button" onClick={() => openEdit(card)} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label={`Edit ${card.title}`} data-testid={`button-edit-card-${card.id}`}><Pencil size={15} /></button>
-                      <button type="button" onClick={() => { setDeleteTarget(card); setDeleteError(''); }} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--destructive)/.1)] hover:text-[hsl(var(--destructive))]" aria-label={`Delete ${card.title}`} data-testid={`button-delete-card-${card.id}`}><Trash2 size={15} /></button>
-                    </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {groupCards.map((card) => (
+                      <article key={card.id} className="group overflow-hidden rounded-[20px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-[0_8px_22px_hsl(var(--foreground)/.045)] transition-transform duration-300 hover:-translate-y-1" data-testid={`card-catalogue-${card.id}`}>
+                        <div className="relative aspect-[4/5] overflow-hidden bg-[hsl(var(--muted))]">
+                          <img src={card.imageUrl} alt={card.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" data-testid={`img-catalogue-${card.id}`} />
+                          {card.category && <span className="absolute left-3 top-3 rounded-full bg-[hsl(var(--card)/.9)] px-2.5 py-1 font-mono text-[0.57rem] font-bold uppercase tracking-[0.13em] text-[hsl(var(--primary))]">{card.category}</span>}
+                        </div>
+                        <div className="flex items-center justify-between gap-3 p-4">
+                          <div className="min-w-0">
+                            <h3 className="truncate font-serif text-xl font-semibold tracking-[-0.035em]" data-testid={`text-card-title-${card.id}`}>{card.title}</h3>
+                            <p className="mt-1 font-mono text-[0.58rem] uppercase tracking-[0.12em] text-[hsl(var(--muted-foreground))]">{card.category ?? 'Uncategorized'}</p>
+                          </div>
+                          <div className="flex shrink-0 gap-1">
+                            <button type="button" onClick={() => openEdit(card)} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label={`Edit ${card.title}`} data-testid={`button-edit-card-${card.id}`}><Pencil size={15} /></button>
+                            <button type="button" onClick={() => { setDeleteTarget(card); setDeleteError(''); }} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--destructive)/.1)] hover:text-[hsl(var(--destructive))]" aria-label={`Delete ${card.title}`} data-testid={`button-delete-card-${card.id}`}><Trash2 size={15} /></button>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
                   </div>
-                </article>
+                </section>
               ))}
             </div>
           )}

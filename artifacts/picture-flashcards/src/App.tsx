@@ -21,7 +21,8 @@ function Router() {
     // survives a page crash.
     <RoutedErrorBoundary>
       <Switch>
-         <Route path="/" component={Playback} />
+         <Route path="/" component={Admin} />
+         <Route path="/practice" component={Playback} />
          <Route path="/admin" component={Admin} />
         <Route component={NotFound} />
       </Switch>
