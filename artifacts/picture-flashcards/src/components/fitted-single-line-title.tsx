@@ -40,10 +40,17 @@ export function FittedSingleLineTitle({
     };
 
     fitTitle();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(fitTitle);
-    observer.observe(title.parentElement ?? title);
-    return () => observer.disconnect();
+    const frameId = typeof window === 'undefined'
+      ? undefined
+      : window.requestAnimationFrame(fitTitle);
+    const observer = typeof ResizeObserver === 'undefined'
+      ? undefined
+      : new ResizeObserver(fitTitle);
+    observer?.observe(title.parentElement ?? title);
+    return () => {
+      if (frameId !== undefined) window.cancelAnimationFrame(frameId);
+      observer?.disconnect();
+    };
   }, [maxFontSize, minFontSize, text]);
 
   const Tag = level === 1 ? 'h1' : level === 3 ? 'h3' : 'h2';

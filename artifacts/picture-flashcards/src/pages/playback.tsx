@@ -211,7 +211,7 @@ export default function Playback() {
                 level={1}
                 maxFontSize={72}
                 minFontSize={24}
-                className="mt-5 max-w-[92vw] text-center font-bold leading-tight tracking-[-0.025em]"
+                className="mt-5 w-full max-w-[92vw] text-center font-bold leading-tight tracking-[-0.025em]"
               />
             </motion.div>
           </AnimatePresence>
