@@ -71,6 +71,18 @@ function normaliseCategory(category: string | null | undefined) {
   return value ? value : null;
 }
 
+function getCenteredPortraitCrop(width: number, height: number): Crop {
+  const aspect = 4 / 5;
+  const cropWidth = width / height >= aspect ? height * aspect : width;
+  const cropHeight = cropWidth / aspect;
+  return {
+    x: (width - cropWidth) / 2,
+    y: (height - cropHeight) / 2,
+    width: cropWidth,
+    height: cropHeight,
+  };
+}
+
 function parseDataUrl(imageData: string) {
   const match = /^data:([^;,]+);base64,(.+)$/s.exec(imageData);
   if (!match) {
@@ -104,25 +116,24 @@ async function prepareImage(
   let image = sharp(input).rotate();
   const metadata = await image.metadata();
 
-  if (crop) {
-    const originalWidth = metadata.width ?? 0;
-    const originalHeight = metadata.height ?? 0;
-    if (!originalWidth || !originalHeight) {
-      throw new Error("Could not read image dimensions");
-    }
-
-    const left = Math.max(0, Math.min(originalWidth - 1, Math.floor(crop.x)));
-    const top = Math.max(0, Math.min(originalHeight - 1, Math.floor(crop.y)));
-    const width = Math.max(
-      1,
-      Math.min(originalWidth - left, Math.floor(crop.width)),
-    );
-    const height = Math.max(
-      1,
-      Math.min(originalHeight - top, Math.floor(crop.height)),
-    );
-    image = image.extract({ left, top, width, height });
+  const originalWidth = metadata.width ?? 0;
+  const originalHeight = metadata.height ?? 0;
+  if (!originalWidth || !originalHeight) {
+    throw new Error("Could not read image dimensions");
   }
+
+  const selectedCrop = crop ?? getCenteredPortraitCrop(originalWidth, originalHeight);
+  const left = Math.max(0, Math.min(originalWidth - 1, Math.floor(selectedCrop.x)));
+  const top = Math.max(0, Math.min(originalHeight - 1, Math.floor(selectedCrop.y)));
+  const width = Math.max(
+    1,
+    Math.min(originalWidth - left, Math.floor(selectedCrop.width)),
+  );
+  const height = Math.max(
+    1,
+    Math.min(originalHeight - top, Math.floor(selectedCrop.height)),
+  );
+  image = image.extract({ left, top, width, height });
 
   await image
     .resize({

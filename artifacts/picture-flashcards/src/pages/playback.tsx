@@ -80,7 +80,7 @@ export default function Playback() {
 
             {isLoading ? (
               <div className="animate-pulse overflow-hidden rounded-[25px] border border-[hsl(var(--border))] bg-[hsl(var(--card))]">
-                <div className="aspect-[16/9] bg-[hsl(var(--muted))]" />
+                <div className="aspect-[4/5] bg-[hsl(var(--muted))]" />
                 <div className="flex items-center justify-between gap-4 p-5 sm:p-7">
                   <div className="h-8 w-44 rounded-lg bg-[hsl(var(--muted))]" />
                   <div className="h-10 w-28 rounded-full bg-[hsl(var(--muted))]" />
@@ -103,7 +103,7 @@ export default function Playback() {
               </div>
             ) : card ? (
               <div className="animate-card-in overflow-hidden rounded-[25px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-[0_16px_45px_hsl(var(--foreground)/.08)]" key={card.id} data-testid={`card-playback-${card.id}`}>
-                <div className="relative aspect-[16/9] overflow-hidden bg-[hsl(var(--muted))] sm:aspect-[2.05/1]">
+                <div className="relative aspect-[4/5] overflow-hidden bg-[hsl(var(--muted))]">
                   <img src={card.imageUrl} alt={card.title} className="h-full w-full object-cover" data-testid={`img-playback-${card.id}`} />
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[hsl(var(--foreground)/.28)] to-transparent" />
                   {card.category && <span className="absolute left-4 top-4 rounded-full bg-[hsl(var(--card)/.9)] px-3 py-1.5 font-mono text-[0.6rem] font-bold uppercase tracking-[0.13em] text-[hsl(var(--primary))]">{card.category}</span>}

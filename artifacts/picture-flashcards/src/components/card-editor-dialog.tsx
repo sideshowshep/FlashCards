@@ -19,7 +19,7 @@ type CardEditorDialogProps = {
 type ImageSize = { width: number; height: number };
 
 function getCrop(imageSize: ImageSize, zoom: number, focusX: number, focusY: number) {
-  const aspect = 2;
+  const aspect = 4 / 5;
   const baseWidth =
     imageSize.width / imageSize.height >= aspect
       ? imageSize.height * aspect
@@ -191,7 +191,7 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="group relative block aspect-[16/8] w-full overflow-hidden rounded-[18px] border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--muted)/.65)] text-left transition-colors hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent)/.12)]"
+              className="group relative block aspect-[4/5] w-full overflow-hidden rounded-[18px] border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--muted)/.65)] text-left transition-colors hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent)/.12)]"
               data-testid="button-upload-image"
             >
               {previewUrl ? (
@@ -238,13 +238,13 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
               )}
             </button>
             <input ref={fileInputRef} id="card-image" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif" className="sr-only" onChange={(event) => handleFile(event.target.files?.[0])} data-testid="input-image-upload" />
-            <p className="mt-2 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">Use the framing controls below to choose what stays in view. HEIC photos are converted on the server.</p>
+            <p className="mt-2 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">The fixed portrait frame matches playback. Use the controls below to choose what stays in view. HEIC photos are converted on the server.</p>
           </div>
 
           {imageData && imageSize && (
             <div className="space-y-3 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/.35)] p-4">
               <div className="flex items-center justify-between gap-3">
-                <p className="font-mono text-[0.64rem] font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">Frame this picture</p>
+                <p className="font-mono text-[0.64rem] font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">Frame the portrait crop</p>
                 <span className="text-xs text-[hsl(var(--muted-foreground))]">Drag the sliders</span>
               </div>
               <label className="grid grid-cols-[5rem_1fr] items-center gap-3 text-sm">

@@ -130,7 +130,7 @@ export default function Admin() {
             </div>
           ) : isLoading ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {[0, 1, 2].map((item) => <div key={item} className="animate-pulse overflow-hidden rounded-[20px] border border-[hsl(var(--border))] bg-[hsl(var(--card))]"><div className="aspect-[1.25/1] bg-[hsl(var(--muted))]" /><div className="space-y-3 p-4"><div className="h-5 w-2/3 rounded bg-[hsl(var(--muted))]" /><div className="h-3 w-1/3 rounded bg-[hsl(var(--muted))]" /></div></div>)}
+              {[0, 1, 2].map((item) => <div key={item} className="animate-pulse overflow-hidden rounded-[20px] border border-[hsl(var(--border))] bg-[hsl(var(--card))]"><div className="aspect-[4/5] bg-[hsl(var(--muted))]" /><div className="space-y-3 p-4"><div className="h-5 w-2/3 rounded bg-[hsl(var(--muted))]" /><div className="h-3 w-1/3 rounded bg-[hsl(var(--muted))]" /></div></div>)}
             </div>
           ) : cards.length === 0 ? (
             <div className="rounded-[22px] border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] px-6 py-16 text-center">
@@ -143,7 +143,7 @@ export default function Admin() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {cards.map((card) => (
                 <article key={card.id} className="group overflow-hidden rounded-[20px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-[0_8px_22px_hsl(var(--foreground)/.045)] transition-transform duration-300 hover:-translate-y-1" data-testid={`card-catalogue-${card.id}`}>
-                  <div className="relative aspect-[1.25/1] overflow-hidden bg-[hsl(var(--muted))]">
+                  <div className="relative aspect-[4/5] overflow-hidden bg-[hsl(var(--muted))]">
                     <img src={card.imageUrl} alt={card.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" data-testid={`img-catalogue-${card.id}`} />
                     {card.category && <span className="absolute left-3 top-3 rounded-full bg-[hsl(var(--card)/.9)] px-2.5 py-1 font-mono text-[0.57rem] font-bold uppercase tracking-[0.13em] text-[hsl(var(--primary))]">{card.category}</span>}
                   </div>
