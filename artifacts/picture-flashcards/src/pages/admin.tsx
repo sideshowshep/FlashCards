@@ -145,7 +145,7 @@ export default function Admin() {
               <span className={`h-2 w-2 rounded-full ${healthQuery.isError ? 'bg-[hsl(var(--destructive))]' : 'bg-[hsl(var(--secondary))]'}`} />
               {healthQuery.isLoading ? 'Checking shelf' : healthQuery.isError ? 'Offline' : 'Shared shelf ready'}
             </div>
-            <button type="button" onClick={openStart} className="rounded-full border border-[hsl(var(--border))] px-4 py-2 font-mono text-[0.6rem] font-bold uppercase tracking-[0.13em] text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--card))] hover:text-[hsl(var(--foreground))]" data-testid="button-start">
+            <button type="button" onClick={openStart} className="rounded-full bg-emerald-600 px-4 py-2 font-mono text-[0.6rem] font-bold uppercase tracking-[0.13em] text-white transition-colors hover:bg-emerald-700" data-testid="button-start">
               Start
             </button>
           </div>
@@ -265,7 +265,7 @@ export default function Admin() {
             </label>
             <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setStartOpen(false)} className="h-11 rounded-xl px-4 text-sm font-semibold text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]" data-testid="button-cancel-start">Cancel</button>
-              <button type="button" onClick={beginPractice} disabled={!selectedStartCategories.length} className="h-11 rounded-xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))] disabled:cursor-not-allowed disabled:opacity-50" data-testid="button-confirm-start">Start</button>
+              <button type="button" onClick={beginPractice} disabled={!selectedStartCategories.length} className="h-11 rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" data-testid="button-confirm-start">Start</button>
             </div>
           </div>
         </div>
