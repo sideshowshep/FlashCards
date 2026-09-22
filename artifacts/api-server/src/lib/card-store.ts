@@ -170,7 +170,7 @@ export async function getSummary() {
   const categories = new Set(
     cards
       .map((card) => card.category)
-      .filter((category): category is string => Boolean(category)),
+      .filter((category): category is string => Boolean(category))
       .map((category) => categoryKey(category)),
   );
   return {
