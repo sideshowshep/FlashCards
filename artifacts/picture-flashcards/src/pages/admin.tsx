@@ -21,7 +21,6 @@ function categoryKey(category: string | null | undefined) {
 
 export default function Admin() {
   const queryClient = useQueryClient();
-  const [category, setCategory] = useState('all');
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Card | null>(null);
@@ -32,15 +31,14 @@ export default function Admin() {
   const [deleteError, setDeleteError] = useState('');
   const [, navigate] = useLocation();
   const allCardsQuery = useListCards();
-  const cardsQuery = useListCards(category === 'all' ? undefined : { category });
   const summaryQuery = useGetCardsSummary();
   const healthQuery = useHealthCheck();
   const deleteCard = useDeleteCard();
-  const cards = cardsQuery.data ?? [];
+  const cards = allCardsQuery.data ?? [];
   const categories = useMemo(
     () => {
       const labels = new Map<string, string>();
-      for (const card of allCardsQuery.data ?? []) {
+      for (const card of cards) {
         if (card.category?.trim()) {
           const label = card.category.trim();
           labels.set(categoryKey(label), labels.get(categoryKey(label)) ?? label);
@@ -48,7 +46,7 @@ export default function Admin() {
       }
       return Array.from(labels.values()).sort();
     },
-    [allCardsQuery.data],
+    [cards],
   );
   const groupedCards = useMemo(() => {
     const groups = new Map<string, { label: string; cards: Card[] }>();
@@ -133,7 +131,7 @@ export default function Admin() {
     );
   };
 
-  const isLoading = cardsQuery.isLoading || allCardsQuery.isLoading || summaryQuery.isLoading;
+  const isLoading = allCardsQuery.isLoading || summaryQuery.isLoading;
 
   return (
     <main className="paper-grain min-h-[100dvh] bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
@@ -151,26 +149,19 @@ export default function Admin() {
           </div>
         </header>
 
-        <section className="flex items-center justify-between gap-4 pb-6 pt-5 sm:pb-8 sm:pt-7">
+        <section className="pb-6 pt-5 sm:pb-8 sm:pt-7">
           <button type="button" onClick={openCreate} className="inline-flex h-12 w-fit items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 font-semibold text-[hsl(var(--primary-foreground))] shadow-[3px_3px_0_hsl(var(--foreground)/.16)] transition-transform hover:-translate-y-0.5 animate-lift-in" data-testid="button-add-card">
             <Plus size={18} /> Add picture
           </button>
-          <label className="flex shrink-0 items-center gap-2">
-            <span className="font-mono text-[0.6rem] font-bold uppercase tracking-[0.14em] text-[hsl(var(--muted-foreground))]">Show</span>
-            <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-10 min-w-32 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.75)] px-3 text-sm font-medium" data-testid="select-admin-category">
-              <option value="all">All pictures</option>
-              {categories.map((item) => <option value={item} key={item}>{item}</option>)}
-            </select>
-          </label>
         </section>
 
         <section className="pb-12 pt-0">
-          {cardsQuery.isError ? (
+          {allCardsQuery.isError ? (
             <div className="rounded-[22px] border border-[hsl(var(--destructive)/.3)] bg-[hsl(var(--destructive)/.07)] px-6 py-12 text-center" role="alert" data-testid="status-catalogue-error">
               <CircleAlert className="mx-auto mb-3 text-[hsl(var(--destructive))]" size={24} />
               <h3 className="font-serif text-2xl font-semibold">The shelf is out of reach</h3>
               <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">Check your connection, then refresh the catalogue.</p>
-              <button type="button" onClick={() => void cardsQuery.refetch()} className="mt-5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-semibold" data-testid="button-retry-catalogue">Try again</button>
+              <button type="button" onClick={() => void allCardsQuery.refetch()} className="mt-5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-semibold" data-testid="button-retry-catalogue">Try again</button>
             </div>
           ) : isLoading ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -179,8 +170,8 @@ export default function Admin() {
           ) : cards.length === 0 ? (
             <div className="rounded-[22px] border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] px-6 py-16 text-center">
               <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-[18px] bg-[hsl(var(--accent)/.2)] text-[hsl(var(--primary))]"><FolderOpen size={25} strokeWidth={1.5} /></span>
-              <h3 className="font-serif text-2xl font-semibold">{category === 'all' ? 'Start with one familiar thing' : 'No pictures in this set yet'}</h3>
-              <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">{category === 'all' ? 'A fruit, a shoe, a favorite cup — small, recognizable things make great first cards.' : 'Try another category or add a new picture to this shelf.'}</p>
+              <h3 className="font-serif text-2xl font-semibold">Start with one familiar thing</h3>
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">A fruit, a shoe, a favorite cup — small, recognizable things make great first cards.</p>
               <button type="button" onClick={openCreate} className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))]" data-testid="button-empty-add-card"><Plus size={16} /> Add picture</button>
             </div>
           ) : (
