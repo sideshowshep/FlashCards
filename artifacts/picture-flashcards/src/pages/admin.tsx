@@ -105,19 +105,6 @@ export default function Admin() {
           </div>
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-3" aria-label="Catalogue summary">
-          {[
-            { label: 'Pictures', value: summaryQuery.data?.total ?? 0, testId: 'summary-total' },
-            { label: 'Categories', value: summaryQuery.data?.categories ?? 0, testId: 'summary-categories' },
-            { label: 'To sort later', value: summaryQuery.data?.uncategorized ?? 0, testId: 'summary-uncategorized' },
-          ].map((item, index) => (
-            <div key={item.label} className={`animate-lift-in delay-${index + 1} rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--card)/.7)] px-5 py-4`}>
-              <p className="font-mono text-[0.6rem] font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">{item.label}</p>
-              <p className="mt-1 font-serif text-3xl font-semibold tracking-[-0.04em]" data-testid={item.testId}>{item.value}</p>
-            </div>
-          ))}
-        </section>
-
         <section className="pb-12 pt-12 sm:pt-14">
           <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
