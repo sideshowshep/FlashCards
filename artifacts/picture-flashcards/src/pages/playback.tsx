@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { ArrowRight, Library, Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
 import {
@@ -11,6 +11,8 @@ import { BrandMark } from '@/components/brand-mark';
 export default function Playback() {
   const [category, setCategory] = useState('all');
   const [playing, setPlaying] = useState(false);
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const lastTapRef = useRef(0);
   const cardsQuery = useListCards();
   const randomParams = category === 'all' ? undefined : { category };
   const randomQuery = useGetRandomCard(randomParams, {
@@ -57,28 +59,44 @@ export default function Playback() {
       <main
         className="playback-focus playback-education-font fixed inset-0 z-50 flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-[hsl(var(--background))] px-5 py-6 text-[hsl(var(--foreground))]"
         aria-label="Picture playback"
-        tabIndex={0}
-        onClick={() => void randomQuery.refetch()}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape' || event.key === ' ') {
-            event.preventDefault();
-            setPlaying(false);
-          } else if (event.key === 'ArrowRight' || event.key === 'Enter') {
-            event.preventDefault();
+        onTouchStart={(event) => {
+          if (event.touches.length !== 1) {
+            touchStartRef.current = null;
+            return;
+          }
+          const touch = event.touches[0];
+          touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+        }}
+        onTouchEnd={(event) => {
+          const start = touchStartRef.current;
+          touchStartRef.current = null;
+          if (!start || event.changedTouches.length !== 1) return;
+
+          const touch = event.changedTouches[0];
+          const deltaX = touch.clientX - start.x;
+          const deltaY = touch.clientY - start.y;
+          const elapsed = Date.now() - start.time;
+          const isSwipe = elapsed < 700 && Math.abs(deltaX) >= 48 && Math.abs(deltaX) > Math.abs(deltaY);
+
+          if (isSwipe) {
+            lastTapRef.current = 0;
             void randomQuery.refetch();
+            return;
+          }
+
+          if (Math.abs(deltaX) < 18 && Math.abs(deltaY) < 18 && elapsed < 350) {
+            const now = Date.now();
+            if (now - lastTapRef.current < 350) {
+              lastTapRef.current = 0;
+              setPlaying(false);
+            } else {
+              lastTapRef.current = now;
+            }
+          } else {
+            lastTapRef.current = 0;
           }
         }}
       >
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            setPlaying(false);
-          }}
-          className="absolute right-0 top-0 h-20 w-20 opacity-0"
-          aria-label="Stop playback"
-          title="Stop playback"
-        />
         <img
           src={card.imageUrl}
           alt=""

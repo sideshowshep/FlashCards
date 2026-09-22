@@ -500,6 +500,7 @@ body,
 
 .playback-focus {
   isolation: isolate;
+  touch-action: none;
 }
 
 .editor-scrollbar::-webkit-scrollbar { width: 8px; }
