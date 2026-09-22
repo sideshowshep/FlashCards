@@ -1,0 +1,138 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'wouter';
+import { ArrowRight, Library, Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
+import {
+  getGetRandomCardQueryKey,
+  useGetRandomCard,
+  useListCards,
+} from '@workspace/api-client-react';
+import { BrandMark } from '@/components/brand-mark';
+
+export default function Playback() {
+  const [category, setCategory] = useState('all');
+  const [playing, setPlaying] = useState(false);
+  const cardsQuery = useListCards();
+  const randomParams = category === 'all' ? undefined : { category };
+  const randomQuery = useGetRandomCard(randomParams, {
+    query: {
+      queryKey: getGetRandomCardQueryKey(randomParams),
+      enabled: !cardsQuery.isLoading && (cardsQuery.data?.length ?? 0) > 0,
+      refetchOnWindowFocus: false,
+    },
+  });
+  const categories = useMemo(
+    () => Array.from(new Set((cardsQuery.data ?? []).map((card) => card.category).filter((value): value is string => Boolean(value)))).sort(),
+    [cardsQuery.data],
+  );
+  const card = randomQuery.data;
+
+  useEffect(() => {
+    if (!playing || !card) return;
+    const timer = window.setInterval(() => {
+      void randomQuery.refetch();
+    }, 8000);
+    return () => window.clearInterval(timer);
+  }, [card, playing, randomQuery.refetch]);
+
+  const chooseCategory = (value: string) => {
+    setPlaying(false);
+    setCategory(value);
+  };
+
+  const nextCard = () => {
+    setPlaying(false);
+    void randomQuery.refetch();
+  };
+
+  const isLoading = cardsQuery.isLoading || randomQuery.isLoading;
+  const hasCards = (cardsQuery.data?.length ?? 0) > 0;
+
+  return (
+    <main className="paper-grain min-h-[100dvh] overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+      <div className="mx-auto flex min-h-[100dvh] w-full max-w-[1440px] flex-col px-5 py-5 sm:px-8 sm:py-7 lg:px-12">
+        <header className="flex items-center justify-between">
+          <BrandMark />
+          <div className="flex items-center gap-3">
+            <span className="hidden font-mono text-[0.6rem] font-bold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))] sm:inline">a quiet moment to notice</span>
+            <Link href="/admin" className="grid h-9 w-9 place-items-center rounded-full text-[hsl(var(--muted-foreground)/.5)] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label="Adult access" title="Adult access" data-testid="link-adult-access">
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+            </Link>
+          </div>
+        </header>
+
+        <section className="flex flex-1 flex-col justify-center py-10 sm:py-14 lg:py-16">
+          <div className="mx-auto w-full max-w-[980px]">
+            <div className="mb-7 flex flex-col gap-5 sm:mb-9 sm:flex-row sm:items-end sm:justify-between">
+              <div className="animate-lift-in">
+                <p className="mb-3 font-mono text-[0.63rem] font-bold uppercase tracking-[0.2em] text-[hsl(var(--primary))]">Look closely</p>
+                <h1 className="max-w-xl font-serif text-4xl font-semibold leading-[0.95] tracking-[-0.055em] sm:text-6xl lg:text-7xl">
+                  What do you<br className="hidden sm:block" /> see?
+                </h1>
+              </div>
+              <div className="w-full sm:w-52 animate-lift-in delay-1">
+                <label htmlFor="play-category" className="mb-2 block font-mono text-[0.61rem] font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">Practice set</label>
+                <select id="play-category" value={category} onChange={(event) => chooseCategory(event.target.value)} className="h-11 w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.75)] px-3 text-sm font-medium text-[hsl(var(--foreground))]" data-testid="select-playback-category">
+                  <option value="all">Everything</option>
+                  {categories.map((item) => <option value={item} key={item}>{item}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="animate-pulse overflow-hidden rounded-[25px] border border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+                <div className="aspect-[16/9] bg-[hsl(var(--muted))]" />
+                <div className="flex items-center justify-between gap-4 p-5 sm:p-7">
+                  <div className="h-8 w-44 rounded-lg bg-[hsl(var(--muted))]" />
+                  <div className="h-10 w-28 rounded-full bg-[hsl(var(--muted))]" />
+                </div>
+              </div>
+            ) : !hasCards ? (
+              <div className="rounded-[25px] border border-[hsl(var(--border))] bg-[hsl(var(--card)/.7)] px-6 py-14 text-center sm:px-12">
+                <span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-[20px] bg-[hsl(var(--accent)/.22)] text-[hsl(var(--primary))]"><Library size={28} strokeWidth={1.5} /></span>
+                <h2 className="font-serif text-3xl font-semibold tracking-[-0.04em]">Your picture shelf is waiting</h2>
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">An adult can add a few familiar pictures, then this space becomes a calm little guessing game.</p>
+                <Link href="/admin" className="mt-7 inline-flex h-11 items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[3px_3px_0_hsl(var(--foreground)/.14)] transition-transform hover:-translate-y-0.5" data-testid="link-empty-add-cards">
+                  Add the first picture <ArrowRight size={16} />
+                </Link>
+              </div>
+            ) : randomQuery.isError ? (
+              <div className="rounded-[25px] border border-[hsl(var(--destructive)/.3)] bg-[hsl(var(--destructive)/.07)] px-6 py-14 text-center" role="alert" data-testid="status-playback-error">
+                <h2 className="font-serif text-3xl font-semibold tracking-[-0.04em]">This card got away</h2>
+                <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">We could not draw a picture from this set.</p>
+                <button type="button" onClick={() => void randomQuery.refetch()} className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-5 text-sm font-semibold" data-testid="button-retry-playback"><RotateCcw size={16} /> Try again</button>
+              </div>
+            ) : card ? (
+              <div className="animate-card-in overflow-hidden rounded-[25px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-[0_16px_45px_hsl(var(--foreground)/.08)]" key={card.id} data-testid={`card-playback-${card.id}`}>
+                <div className="relative aspect-[16/9] overflow-hidden bg-[hsl(var(--muted))] sm:aspect-[2.05/1]">
+                  <img src={card.imageUrl} alt={card.title} className="h-full w-full object-cover" data-testid={`img-playback-${card.id}`} />
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[hsl(var(--foreground)/.28)] to-transparent" />
+                  {card.category && <span className="absolute left-4 top-4 rounded-full bg-[hsl(var(--card)/.9)] px-3 py-1.5 font-mono text-[0.6rem] font-bold uppercase tracking-[0.13em] text-[hsl(var(--primary))]">{card.category}</span>}
+                </div>
+                <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-7">
+                  <div>
+                    <p className="mb-1 font-mono text-[0.6rem] font-bold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">Picture card</p>
+                    <h2 className="font-serif text-3xl font-semibold tracking-[-0.045em] sm:text-4xl" data-testid={`text-playback-title-${card.id}`}>{card.title}</h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setPlaying((value) => !value)} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[hsl(var(--secondary))] px-4 text-sm font-semibold text-[hsl(var(--secondary-foreground))] transition-transform hover:-translate-y-0.5" data-testid="button-toggle-playback">
+                      {playing ? <Pause size={16} /> : <Play size={16} />}
+                      {playing ? 'Pause' : 'Play'}
+                    </button>
+                    <button type="button" onClick={nextCard} disabled={randomQuery.isFetching} className="grid h-11 w-11 place-items-center rounded-xl border border-[hsl(var(--border))] text-[hsl(var(--foreground))] transition-colors hover:bg-[hsl(var(--muted))] disabled:opacity-50" data-testid="button-next-card" aria-label="Next picture">
+                      <SkipForward size={17} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <footer className="flex items-center justify-between gap-4 border-t border-[hsl(var(--border)/.65)] pt-4 text-[0.68rem] text-[hsl(var(--muted-foreground))]">
+          <span>Made for noticing things together.</span>
+          <span className="font-mono uppercase tracking-[0.16em]">one card at a time</span>
+        </footer>
+      </div>
+    </main>
+  );
+}

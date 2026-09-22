@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Picture Flashcards"
+description = "A local-first educational flashcard PWA for children, with shared image storage, crop-friendly uploads, editable titles and categories, and simple full-screen playback for adults and children to use together."
+version = "1.0.0"
+id = "artifacts/picture-flashcards"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21727
+
+[services.development]
+run = "pnpm --filter @workspace/picture-flashcards run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/picture-flashcards", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/picture-flashcards/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21727"
+BASE_PATH = "/"

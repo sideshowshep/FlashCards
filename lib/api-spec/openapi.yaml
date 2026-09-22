@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: cards
+    description: Shared picture flashcard catalogue
 paths:
   /healthz:
     get:
@@ -24,6 +26,118 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /cards:
+    get:
+      operationId: listCards
+      tags: [cards]
+      summary: List all flashcards
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Flashcards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Card"
+    post:
+      operationId: createCard
+      tags: [cards]
+      summary: Create a flashcard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CardInput"
+      responses:
+        "201":
+          description: Created flashcard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Card"
+        "400":
+          description: Invalid card
+  /cards/summary:
+    get:
+      operationId: getCardsSummary
+      tags: [cards]
+      summary: Get catalogue summary
+      responses:
+        "200":
+          description: Catalogue summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardsSummary"
+  /cards/random:
+    get:
+      operationId: getRandomCard
+      tags: [cards]
+      summary: Get one random flashcard
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Random flashcard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Card"
+        "404":
+          description: No matching cards
+  /cards/{id}:
+    patch:
+      operationId: updateCard
+      tags: [cards]
+      summary: Update a flashcard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CardUpdate"
+      responses:
+        "200":
+          description: Updated flashcard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Card"
+        "404":
+          description: Card not found
+    delete:
+      operationId: deleteCard
+      tags: [cards]
+      summary: Delete a flashcard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Card not found
 components:
   schemas:
     HealthStatus:
@@ -33,4 +147,76 @@ components:
           type: string
       required:
         - status
+    Crop:
+      type: object
+      properties:
+        x:
+          type: number
+          minimum: 0
+        y:
+          type: number
+          minimum: 0
+        width:
+          type: number
+          exclusiveMinimum: 0
+        height:
+          type: number
+          exclusiveMinimum: 0
+      required: [x, y, width, height]
+    Card:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        category:
+          type: ["string", "null"]
+        imageUrl:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, title, category, imageUrl, createdAt, updatedAt]
+    CardInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        category:
+          type: ["string", "null"]
+          maxLength: 60
+        imageData:
+          type: string
+          minLength: 1
+        crop:
+          $ref: "#/components/schemas/Crop"
+      required: [title, imageData]
+    CardUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        category:
+          type: ["string", "null"]
+        imageData:
+          type: string
+        crop:
+          $ref: "#/components/schemas/Crop"
+      required: [title]
+    CardsSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        categories:
+          type: integer
+        uncategorized:
+          type: integer
+      required: [total, categories, uncategorized]
 
