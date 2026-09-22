@@ -157,7 +157,8 @@ export default function Playback() {
             ref={preparedImageRef}
             src={playbackOrder[0].imageUrl}
             alt=""
-            className="hidden"
+            aria-hidden="true"
+            className="pointer-events-none absolute h-px w-px opacity-0"
             onLoad={() => {
               setLoadedPlaybackToken(playbackToken);
               setPlaying(true);
