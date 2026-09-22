@@ -13,7 +13,6 @@ import {
 import type { Card } from '@workspace/api-client-react';
 import { BrandMark } from '@/components/brand-mark';
 import { CardEditorDialog } from '@/components/card-editor-dialog';
-import { FittedSingleLineTitle } from '@/components/fitted-single-line-title';
 import type { CardTextCase } from '@/lib/card-text';
 
 function categoryKey(category: string | null | undefined) {
@@ -185,7 +184,7 @@ export default function Admin() {
                         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[hsl(var(--muted))] sm:h-20 sm:w-20">
                           <img src={card.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" data-testid={`img-catalogue-${card.id}`} />
                         </div>
-                        <FittedSingleLineTitle text={card.title} level={3} maxFontSize={32} minFontSize={14} className="min-w-0 flex-1 font-serif font-semibold tracking-[-0.035em]" testId={`text-card-title-${card.id}`} />
+                        <h3 className="min-w-0 flex-1 truncate font-serif text-xl font-semibold tracking-[-0.035em]" data-testid={`text-card-title-${card.id}`}>{card.title}</h3>
                         <div className="flex shrink-0 gap-1">
                           <button type="button" onClick={() => openEdit(card)} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label={`Edit ${card.title}`} data-testid={`button-edit-card-${card.id}`}><Pencil size={15} /></button>
                           <button type="button" onClick={() => { setDeleteTarget(card); setDeleteError(''); }} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--destructive)/.1)] hover:text-[hsl(var(--destructive))]" aria-label={`Delete ${card.title}`} data-testid={`button-delete-card-${card.id}`}><Trash2 size={15} /></button>
