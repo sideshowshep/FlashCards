@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "g5-X2T_cwOfQL9g8-XQSX"
+uri = "file://artifacts/picture-flashcards/public/pwa-icon-512.png"
+type = "image"
+title = "Purple Picture Flashcards PWA Icon"
+description = "Preview only — a purple glowing stack of picture cards on a black rounded-square background. The app files have not been wired to use it yet."
+logical_id = "66401a40-6995-4de3-8ce5-4b0840d70878"
+content_hash = "sha256:cf32c648b02fce2b6946931dd23338db3960c3c7b8ae69204f710977b0f9dbc6"
+size = 795022
+mtime_ms = 1790108038857
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:ea66809c-aee7-497a-8683-54a2b654d172/66401a40-6995-4de3-8ce5-4b0840d70878/de2e401c-ab9c-4f78-8b32-40823ebb53a4"
+storage_version_token = "1790108123235495"
+content_type = "image/png"
