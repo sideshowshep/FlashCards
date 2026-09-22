@@ -19,6 +19,16 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+const rawApiPort = process.env.API_PORT;
+const apiPort = rawApiPort ? Number(rawApiPort) : undefined;
+
+if (
+  rawApiPort
+  && (apiPort === undefined || Number.isNaN(apiPort) || apiPort <= 0)
+) {
+  throw new Error(`Invalid API_PORT value: "${rawApiPort}"`);
+}
+
 const basePath = process.env.BASE_PATH;
 
 if (!basePath) {
@@ -26,6 +36,15 @@ if (!basePath) {
     'BASE_PATH environment variable is required but was not provided.',
   );
 }
+
+const apiProxy = apiPort
+  ? {
+      '/api': {
+        target: `http://127.0.0.1:${apiPort}`,
+        changeOrigin: false,
+      },
+    }
+  : undefined;
 
 export default defineConfig({
   base: basePath,
@@ -69,6 +88,7 @@ export default defineConfig({
     strictPort: true,
     host: '0.0.0.0',
     allowedHosts: true,
+    ...(apiProxy ? { proxy: apiProxy } : {}),
     fs: {
       strict: true,
     },
@@ -77,5 +97,6 @@ export default defineConfig({
     port,
     host: '0.0.0.0',
     allowedHosts: true,
+    ...(apiProxy ? { proxy: apiProxy } : {}),
   },
 });

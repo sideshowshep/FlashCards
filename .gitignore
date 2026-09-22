@@ -47,3 +47,8 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Picture Flashcards local runtime
+.picture-flashcards.local.env
+.picture-flashcards-data/
+.picture-flashcards-runtime/
