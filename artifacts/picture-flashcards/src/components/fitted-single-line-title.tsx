@@ -25,12 +25,16 @@ export function FittedSingleLineTitle({
     if (!title) return;
 
     const fitTitle = () => {
-      title.style.fontSize = `${maxFontSize}px`;
       const availableWidth = title.clientWidth;
-      const naturalWidth = title.scrollWidth;
-      const nextFontSize = naturalWidth > availableWidth
-        ? Math.max(minFontSize, maxFontSize * (availableWidth / naturalWidth))
-        : maxFontSize;
+      let nextFontSize = maxFontSize;
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        title.style.fontSize = `${nextFontSize}px`;
+        if (title.scrollWidth <= availableWidth || nextFontSize <= minFontSize) break;
+        nextFontSize = Math.max(
+          minFontSize,
+          nextFontSize * (availableWidth / title.scrollWidth),
+        );
+      }
       title.style.fontSize = `${nextFontSize}px`;
       setFontSize(nextFontSize);
     };
