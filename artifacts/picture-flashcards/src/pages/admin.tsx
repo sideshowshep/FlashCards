@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
-import { ChevronDown, CircleAlert, FolderOpen, LoaderCircle, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, CircleAlert, FolderOpen, LoaderCircle, Plus, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetCardsSummaryQueryKey,
@@ -199,14 +199,28 @@ export default function Admin() {
                         {isExpanded && (
                           <div id={`category-content-${group.replace(/\s+/g, '-').toLowerCase()}`} className="mb-8 overflow-hidden rounded-[20px] border border-[hsl(var(--border))] bg-[hsl(var(--card)/.7)]">
                             {groupCards.map((card) => (
-                              <article key={card.id} className="group flex items-center gap-3 border-b border-[hsl(var(--border)/.7)] p-3 last:border-b-0 sm:gap-4 sm:p-4" data-testid={`card-catalogue-${card.id}`}>
+                              <article
+                                key={card.id}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`Edit ${card.title}`}
+                                onClick={() => openEdit(card)}
+                                onKeyDown={(event) => {
+                                  if (event.target !== event.currentTarget) return;
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    openEdit(card);
+                                  }
+                                }}
+                                className="group flex cursor-pointer items-center gap-3 border-b border-[hsl(var(--border)/.7)] p-3 transition-colors hover:bg-[hsl(var(--muted)/.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))] last:border-b-0 sm:gap-4 sm:p-4"
+                                data-testid={`card-catalogue-${card.id}`}
+                              >
                                 <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[hsl(var(--muted))] sm:h-20 sm:w-20">
                                   <img src={card.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" data-testid={`img-catalogue-${card.id}`} />
                                 </div>
                                 <h3 className="min-w-0 flex-1 truncate font-serif text-xl font-semibold tracking-[-0.035em]" data-testid={`text-card-title-${card.id}`}>{card.title}</h3>
                                 <div className="flex shrink-0 gap-1">
-                                  <button type="button" onClick={() => openEdit(card)} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label={`Edit ${card.title}`} data-testid={`button-edit-card-${card.id}`}><Pencil size={15} /></button>
-                                  <button type="button" onClick={() => { setDeleteTarget(card); setDeleteError(''); }} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--destructive)/.1)] hover:text-[hsl(var(--destructive))]" aria-label={`Delete ${card.title}`} data-testid={`button-delete-card-${card.id}`}><Trash2 size={15} /></button>
+                                  <button type="button" onClick={(event) => { event.stopPropagation(); setDeleteTarget(card); setDeleteError(''); }} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--destructive)/.1)] hover:text-[hsl(var(--destructive))]" aria-label={`Delete ${card.title}`} data-testid={`button-delete-card-${card.id}`}><Trash2 size={15} /></button>
                                 </div>
                               </article>
                             ))}
