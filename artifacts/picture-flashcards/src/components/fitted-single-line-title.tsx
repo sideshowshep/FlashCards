@@ -19,6 +19,7 @@ export function FittedSingleLineTitle({
 }: FittedSingleLineTitleProps) {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [fontSize, setFontSize] = useState(maxFontSize);
+  const [fitsOnOneLine, setFitsOnOneLine] = useState(true);
 
   useLayoutEffect(() => {
     const title = titleRef.current;
@@ -26,8 +27,11 @@ export function FittedSingleLineTitle({
 
     const fitTitle = () => {
       const availableWidth = title.clientWidth;
+      if (availableWidth < 1) return;
+
+      title.style.whiteSpace = 'nowrap';
       let nextFontSize = maxFontSize;
-      for (let attempt = 0; attempt < 4; attempt += 1) {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
         title.style.fontSize = `${nextFontSize}px`;
         if (title.scrollWidth <= availableWidth || nextFontSize <= minFontSize) break;
         nextFontSize = Math.max(
@@ -35,8 +39,13 @@ export function FittedSingleLineTitle({
           nextFontSize * (availableWidth / title.scrollWidth),
         );
       }
+      const fits = title.scrollWidth <= availableWidth;
+      if (!fits) {
+        title.style.whiteSpace = 'normal';
+      }
       title.style.fontSize = `${nextFontSize}px`;
       setFontSize(nextFontSize);
+      setFitsOnOneLine(fits);
     };
 
     fitTitle();
@@ -58,7 +67,7 @@ export function FittedSingleLineTitle({
   return (
     <Tag
       ref={titleRef}
-      className={`${className} overflow-hidden text-ellipsis whitespace-nowrap`}
+      className={`${className} ${fitsOnOneLine ? 'overflow-hidden text-ellipsis whitespace-nowrap' : 'break-words overflow-visible whitespace-normal'}`}
       style={{ fontSize }}
       data-testid={testId}
     >
