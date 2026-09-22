@@ -23,7 +23,9 @@ type CardEditorDialogProps = {
   onSaved: () => void;
 };
 
-const PORTRAIT_ASPECT = 4 / 5;
+const MIN_CROP_ASPECT = 4 / 5;
+const MAX_CROP_ASPECT = 5 / 4;
+const DEFAULT_CROP_ASPECT = 1;
 
 function readAsDataUrl(blob: Blob) {
   return new Promise<string>((resolve, reject) => {
@@ -50,6 +52,36 @@ function getNaturalCrop(
     width: crop.width * scaleX,
     height: crop.height * scaleY,
   };
+}
+
+function clampCropAspect(crop: PercentCrop, image: HTMLImageElement | null): PercentCrop {
+  if (!image?.naturalWidth || !image.naturalHeight) return crop;
+
+  const imageWidth = image.naturalWidth;
+  const imageHeight = image.naturalHeight;
+  let { x, y, width, height } = crop;
+  const cropAspect = (width * imageWidth) / (height * imageHeight);
+
+  if (cropAspect < MIN_CROP_ASPECT) {
+    const targetWidth = (height * imageHeight * MIN_CROP_ASPECT) / imageWidth;
+    if (targetWidth <= 100) {
+      width = targetWidth;
+    } else {
+      height = (width * imageWidth) / (MIN_CROP_ASPECT * imageHeight);
+    }
+  } else if (cropAspect > MAX_CROP_ASPECT) {
+    const targetHeight = (width * imageWidth) / (MAX_CROP_ASPECT * imageHeight);
+    if (targetHeight <= 100) {
+      height = targetHeight;
+    } else {
+      width = (height * imageHeight * MAX_CROP_ASPECT) / imageWidth;
+    }
+  }
+
+  x = Math.min(Math.max(x, 0), 100 - width);
+  y = Math.min(Math.max(y, 0), 100 - height);
+
+  return { ...crop, x, y, width, height };
 }
 
 export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDialogProps) {
@@ -214,9 +246,8 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
               {previewUrl && imageData ? (
                 <ReactCrop
                   crop={crop}
-                  onChange={(_, percentCrop: PercentCrop) => setCrop(percentCrop)}
-                  onComplete={(_, percentCrop: PercentCrop) => setCrop(percentCrop)}
-                  aspect={PORTRAIT_ASPECT}
+                  onChange={(_, percentCrop: PercentCrop) => setCrop(clampCropAspect(percentCrop, imageRef.current))}
+                  onComplete={(_, percentCrop: PercentCrop) => setCrop(clampCropAspect(percentCrop, imageRef.current))}
                   keepSelection
                   minWidth={60}
                   minHeight={75}
@@ -234,7 +265,7 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
                         centerCrop(
                           makeAspectCrop(
                             { unit: '%', width: 80 },
-                            PORTRAIT_ASPECT,
+                            DEFAULT_CROP_ASPECT,
                             width,
                             height,
                           ),
