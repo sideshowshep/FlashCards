@@ -214,21 +214,23 @@ export default function Playback() {
               animate="center"
               exit="exit"
               transition={{ type: 'spring', stiffness: 360, damping: 34, mass: 0.8 }}
-              className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-150 ${loadedPlaybackToken === playbackToken ? 'opacity-100' : 'opacity-0'}`}
+              className="absolute inset-0 flex flex-col items-center justify-center"
             >
               <img
                 src={playbackCard.imageUrl}
                 alt=""
                 onLoad={() => setLoadedPlaybackToken(playbackToken)}
-                className="max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] shrink-0 rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)]"
+                className={`max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] shrink-0 rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)] ${loadedPlaybackToken === playbackToken ? '' : 'invisible'}`}
               />
-              <FittedSingleLineTitle
-                text={formatCardText(playbackCard.title, selectedTextCase)}
-                level={1}
-                maxFontSize={64}
-                minFontSize={16}
-                className="mt-5 w-full max-w-[92vw] shrink-0 text-center font-bold leading-tight tracking-[-0.025em]"
-              />
+              {loadedPlaybackToken === playbackToken && (
+                <FittedSingleLineTitle
+                  text={formatCardText(playbackCard.title, selectedTextCase)}
+                  level={1}
+                  maxFontSize={64}
+                  minFontSize={16}
+                  className="mt-5 w-full max-w-[92vw] shrink-0 text-center font-bold leading-tight tracking-[-0.025em]"
+                />
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
