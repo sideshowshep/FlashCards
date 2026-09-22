@@ -42,6 +42,7 @@ export default function Playback() {
   const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef(0);
+  const playbackImageRef = useRef<HTMLImageElement | null>(null);
   const cardsQuery = useListCards();
   const randomQuery = useGetRandomCard(undefined, {
     query: {
@@ -122,6 +123,14 @@ export default function Playback() {
     return () => window.clearTimeout(reminderTimer);
   }, [cardsQuery.data, cardsQuery.isLoading, playbackOrder.length, playing, selectedCategoryKeys]);
 
+  useEffect(() => {
+    if (!playing || !playbackCard) return;
+    const image = playbackImageRef.current;
+    if (image?.complete && image.naturalWidth > 0) {
+      setLoadedPlaybackToken(playbackToken);
+    }
+  }, [playing, playbackCard?.id, playbackToken]);
+
   const isLoading = cardsQuery.isLoading || randomQuery.isLoading;
   const hasCards = (cardsQuery.data?.length ?? 0) > 0;
 
@@ -198,6 +207,7 @@ export default function Playback() {
               className="absolute inset-0 flex flex-col items-center justify-center"
             >
               <img
+                ref={playbackImageRef}
                 src={playbackCard.imageUrl}
                 alt=""
                 onLoad={() => setLoadedPlaybackToken(playbackToken)}
