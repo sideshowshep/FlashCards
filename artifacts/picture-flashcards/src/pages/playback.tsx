@@ -43,6 +43,7 @@ export default function Playback() {
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef(0);
   const playbackImageRef = useRef<HTMLImageElement | null>(null);
+  const preparedImageRef = useRef<HTMLImageElement | null>(null);
   const cardsQuery = useListCards();
   const randomQuery = useGetRandomCard(undefined, {
     query: {
@@ -97,30 +98,16 @@ export default function Playback() {
     startPlaybackWithCards(cardsQuery.data ?? []);
   };
 
-  const startPlaybackWithCards = (cardsInSet: Card[]) => {
+  const startPlaybackWithCards = (cardsInSet: Card[], waitForFirstImage = false) => {
     const order = shuffleCards(cardsInSet);
     if (order.length < 1) return;
     const nextToken = playbackToken + 1;
-    const firstImage = new Image();
-    let revealed = false;
-
-    const revealPlayback = (firstImageLoaded: boolean) => {
-      if (revealed) return;
-      revealed = true;
-      setPlaybackOrder(order);
-      setPlaybackIndex(0);
-      setSlideDirection(1);
-      setPlaybackToken(nextToken);
-      setLoadedPlaybackToken(firstImageLoaded ? nextToken : null);
-      setPlaying(true);
-    };
-
-    firstImage.onload = () => revealPlayback(true);
-    firstImage.onerror = () => revealPlayback(false);
-    firstImage.src = order[0].imageUrl;
-    if (firstImage.complete) {
-      revealPlayback(firstImage.naturalWidth > 0);
-    }
+    setPlaybackOrder(order);
+    setPlaybackIndex(0);
+    setSlideDirection(1);
+    setPlaybackToken(nextToken);
+    setLoadedPlaybackToken(null);
+    setPlaying(!waitForFirstImage);
   };
 
   useEffect(() => {
@@ -134,10 +121,19 @@ export default function Playback() {
       selectedCategoryKeys.includes(selectedCategoryKey(item.category))
     ));
     const reminderTimer = window.setTimeout(() => {
-      startPlaybackWithCards(cardsInSet);
+      startPlaybackWithCards(cardsInSet, true);
     }, PLAYBACK_REMINDER_DELAY);
     return () => window.clearTimeout(reminderTimer);
   }, [cardsQuery.data, cardsQuery.isLoading, playbackOrder.length, playing, selectedCategoryKeys]);
+
+  useEffect(() => {
+    if (playing || !playbackOrder[0]) return;
+    const image = preparedImageRef.current;
+    if (image?.complete && image.naturalWidth > 0) {
+      setLoadedPlaybackToken(playbackToken);
+      setPlaying(true);
+    }
+  }, [playing, playbackOrder[0]?.id, playbackToken]);
 
   useEffect(() => {
     if (!playing || !playbackCard) return;
@@ -156,6 +152,18 @@ export default function Playback() {
         className="playback-focus fixed inset-0 z-50 grid min-h-[100dvh] place-items-center bg-[hsl(var(--background))] text-[hsl(var(--foreground))]"
         aria-label="Preparing picture playback"
       >
+        {playbackOrder[0] && (
+          <img
+            ref={preparedImageRef}
+            src={playbackOrder[0].imageUrl}
+            alt=""
+            className="hidden"
+            onLoad={() => {
+              setLoadedPlaybackToken(playbackToken);
+              setPlaying(true);
+            }}
+          />
+        )}
         <p className="px-6 text-center font-mono text-sm font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]" data-testid="text-playback-stop-reminder">
           Double tap to stop playback
         </p>
