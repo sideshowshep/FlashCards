@@ -1,1 +1,2 @@
 - [Generated client DOM types](generated-client-dom-types.md) — include DOM iterable typings for Orval fetch helpers.
+- [Raspberry Pi image serving](pi-image-serving.md) — use direct JPEG reads because sendFile returned 404 for existing Pi uploads.
