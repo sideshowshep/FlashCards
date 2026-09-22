@@ -99,11 +99,7 @@ export default function Admin() {
         </section>
 
         <section className="pb-12 pt-12 sm:pt-14">
-          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="font-mono text-[0.61rem] font-bold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">Catalogue</p>
-              <h2 className="mt-1 font-serif text-3xl font-semibold tracking-[-0.045em]">Everyday pictures</h2>
-            </div>
+          <div className="mb-5 flex justify-end">
             <label className="flex items-center gap-3">
               <span className="font-mono text-[0.6rem] font-bold uppercase tracking-[0.14em] text-[hsl(var(--muted-foreground))]">Show</span>
               <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-10 min-w-36 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.75)] px-3 text-sm font-medium" data-testid="select-admin-category">
