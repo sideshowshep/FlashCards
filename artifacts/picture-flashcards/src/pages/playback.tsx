@@ -24,7 +24,7 @@ function categoryKey(category: string | null | undefined) {
 }
 
 export default function Playback() {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const [category, setCategory] = useState('all');
   const [playing, setPlaying] = useState(false);
   const [playbackOrder, setPlaybackOrder] = useState<Card[]>([]);
@@ -167,7 +167,7 @@ export default function Playback() {
             const now = Date.now();
             if (now - lastTapRef.current < 350) {
               lastTapRef.current = 0;
-              setPlaying(false);
+              navigate('/');
             } else {
               lastTapRef.current = now;
             }
