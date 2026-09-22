@@ -100,11 +100,27 @@ export default function Playback() {
   const startPlaybackWithCards = (cardsInSet: Card[]) => {
     const order = shuffleCards(cardsInSet);
     if (order.length < 1) return;
-    setPlaybackOrder(order);
-    setPlaybackIndex(0);
-    setSlideDirection(1);
-    setPlaybackToken((currentToken) => currentToken + 1);
-    setPlaying(true);
+    const nextToken = playbackToken + 1;
+    const firstImage = new Image();
+    let revealed = false;
+
+    const revealPlayback = (firstImageLoaded: boolean) => {
+      if (revealed) return;
+      revealed = true;
+      setPlaybackOrder(order);
+      setPlaybackIndex(0);
+      setSlideDirection(1);
+      setPlaybackToken(nextToken);
+      setLoadedPlaybackToken(firstImageLoaded ? nextToken : null);
+      setPlaying(true);
+    };
+
+    firstImage.onload = () => revealPlayback(true);
+    firstImage.onerror = () => revealPlayback(false);
+    firstImage.src = order[0].imageUrl;
+    if (firstImage.complete) {
+      revealPlayback(firstImage.naturalWidth > 0);
+    }
   };
 
   useEffect(() => {
