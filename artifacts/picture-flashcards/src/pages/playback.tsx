@@ -146,6 +146,17 @@ export default function Playback() {
   const isLoading = cardsQuery.isLoading || randomQuery.isLoading;
   const hasCards = (cardsQuery.data?.length ?? 0) > 0;
 
+  if (selectedCategoryKeys.length > 0 && !playing) {
+    return (
+      <main
+        className="playback-focus fixed inset-0 z-50 grid min-h-[100dvh] place-items-center bg-[hsl(var(--background))] text-[hsl(var(--foreground))]"
+        aria-label="Preparing picture playback"
+      >
+        <span className="h-3 w-3 animate-pulse rounded-full bg-[hsl(var(--secondary))]" />
+      </main>
+    );
+  }
+
   if (playing && playbackCard) {
     return (
       <main
@@ -209,7 +220,6 @@ export default function Playback() {
                 src={playbackCard.imageUrl}
                 alt=""
                 onLoad={() => setLoadedPlaybackToken(playbackToken)}
-                onError={() => setLoadedPlaybackToken(playbackToken)}
                 className="max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] shrink-0 rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)]"
               />
               <FittedSingleLineTitle
