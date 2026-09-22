@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Check, CircleAlert, FolderOpen, LoaderCircle, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, CircleAlert, FolderOpen, LoaderCircle, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetCardsSummaryQueryKey,
@@ -28,6 +28,7 @@ export default function Admin() {
   const [startOpen, setStartOpen] = useState(false);
   const [selectedStartCategories, setSelectedStartCategories] = useState<string[]>([]);
   const [startTextCase, setStartTextCase] = useState<CardTextCase>('upper');
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => new Set());
   const [deleteError, setDeleteError] = useState('');
   const [, navigate] = useLocation();
   const allCardsQuery = useListCards();
@@ -87,6 +88,18 @@ export default function Admin() {
         ? current.filter((item) => item !== key)
         : [...current, key]
     ));
+  };
+
+  const toggleCategory = (value: string) => {
+    setExpandedCategories((current) => {
+      const next = new Set(current);
+      if (next.has(value)) {
+        next.delete(value);
+      } else {
+        next.add(value);
+      }
+      return next;
+    });
   };
 
   const beginPractice = () => {
@@ -174,24 +187,42 @@ export default function Admin() {
             <div className="space-y-10">
               {groupedCards.map(([group, groupCards]) => (
                 <section key={group} aria-labelledby={`category-${group.replace(/\s+/g, '-').toLowerCase()}`}>
-                  <div className="mb-4 flex items-center gap-3">
-                    <h3 id={`category-${group.replace(/\s+/g, '-').toLowerCase()}`} className="font-serif text-2xl font-semibold tracking-[-0.04em]">{group}</h3>
-                    <span className="rounded-full bg-[hsl(var(--muted))] px-2.5 py-1 font-mono text-[0.58rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--muted-foreground))]">{groupCards.length}</span>
-                  </div>
-                  <div className="overflow-hidden rounded-[20px] border border-[hsl(var(--border))] bg-[hsl(var(--card)/.7)]">
-                    {groupCards.map((card) => (
-                      <article key={card.id} className="group flex items-center gap-3 border-b border-[hsl(var(--border)/.7)] p-3 last:border-b-0 sm:gap-4 sm:p-4" data-testid={`card-catalogue-${card.id}`}>
-                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[hsl(var(--muted))] sm:h-20 sm:w-20">
-                          <img src={card.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" data-testid={`img-catalogue-${card.id}`} />
-                        </div>
-                        <h3 className="min-w-0 flex-1 truncate font-serif text-xl font-semibold tracking-[-0.035em]" data-testid={`text-card-title-${card.id}`}>{card.title}</h3>
-                        <div className="flex shrink-0 gap-1">
-                          <button type="button" onClick={() => openEdit(card)} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label={`Edit ${card.title}`} data-testid={`button-edit-card-${card.id}`}><Pencil size={15} /></button>
-                          <button type="button" onClick={() => { setDeleteTarget(card); setDeleteError(''); }} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--destructive)/.1)] hover:text-[hsl(var(--destructive))]" aria-label={`Delete ${card.title}`} data-testid={`button-delete-card-${card.id}`}><Trash2 size={15} /></button>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
+                  {(() => {
+                    const groupKey = categoryKey(group) || 'uncategorized';
+                    const isExpanded = expandedCategories.has(groupKey);
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => toggleCategory(groupKey)}
+                          className="mb-4 flex w-full items-center gap-3 text-left"
+                          aria-expanded={isExpanded}
+                          aria-controls={`category-content-${group.replace(/\s+/g, '-').toLowerCase()}`}
+                          data-testid={`button-toggle-category-${groupKey}`}
+                        >
+                          <h3 id={`category-${group.replace(/\s+/g, '-').toLowerCase()}`} className="font-serif text-2xl font-semibold tracking-[-0.04em]">{group}</h3>
+                          <span className="rounded-full bg-[hsl(var(--muted))] px-2.5 py-1 font-mono text-[0.58rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--muted-foreground))]">{groupCards.length}</span>
+                          <ChevronDown size={18} className={`ml-auto text-[hsl(var(--muted-foreground))] transition-transform ${isExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+                        </button>
+                        {isExpanded && (
+                          <div id={`category-content-${group.replace(/\s+/g, '-').toLowerCase()}`} className="mb-8 overflow-hidden rounded-[20px] border border-[hsl(var(--border))] bg-[hsl(var(--card)/.7)]">
+                            {groupCards.map((card) => (
+                              <article key={card.id} className="group flex items-center gap-3 border-b border-[hsl(var(--border)/.7)] p-3 last:border-b-0 sm:gap-4 sm:p-4" data-testid={`card-catalogue-${card.id}`}>
+                                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[hsl(var(--muted))] sm:h-20 sm:w-20">
+                                  <img src={card.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" data-testid={`img-catalogue-${card.id}`} />
+                                </div>
+                                <h3 className="min-w-0 flex-1 truncate font-serif text-xl font-semibold tracking-[-0.035em]" data-testid={`text-card-title-${card.id}`}>{card.title}</h3>
+                                <div className="flex shrink-0 gap-1">
+                                  <button type="button" onClick={() => openEdit(card)} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label={`Edit ${card.title}`} data-testid={`button-edit-card-${card.id}`}><Pencil size={15} /></button>
+                                  <button type="button" onClick={() => { setDeleteTarget(card); setDeleteError(''); }} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--destructive)/.1)] hover:text-[hsl(var(--destructive))]" aria-label={`Delete ${card.title}`} data-testid={`button-delete-card-${card.id}`}><Trash2 size={15} /></button>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </section>
               ))}
             </div>
