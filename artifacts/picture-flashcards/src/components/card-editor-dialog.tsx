@@ -21,6 +21,7 @@ type CardEditorDialogProps = {
   card: Card | null;
   onClose: () => void;
   onSaved: () => void;
+  page?: boolean;
 };
 
 const MIN_CROP_ASPECT = 4 / 5;
@@ -84,7 +85,7 @@ function clampCropAspect(crop: PercentCrop, image: HTMLImageElement | null): Per
   return { ...crop, x, y, width, height };
 }
 
-export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDialogProps) {
+export function CardEditorDialog({ open, card, onClose, onSaved, page = false }: CardEditorDialogProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
@@ -215,11 +216,18 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-[hsl(var(--foreground)/.38)] p-0 backdrop-blur-[3px] sm:items-center sm:p-6" role="presentation">
+    <div
+      className={page
+        ? "min-h-[100dvh] bg-[hsl(var(--background))] px-5 py-6 sm:px-8 sm:py-10"
+        : "fixed inset-0 z-40 flex items-end justify-center bg-[hsl(var(--foreground)/.38)] p-0 backdrop-blur-[3px] sm:items-center sm:p-6"}
+      role={page ? 'main' : 'presentation'}
+    >
       <div
-        className="animate-lift-in editor-scrollbar max-h-[94dvh] w-full overflow-y-auto rounded-t-[28px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-[0_24px_80px_hsl(var(--foreground)/.22)] sm:max-w-2xl sm:rounded-[28px]"
-        role="dialog"
-        aria-modal="true"
+        className={page
+          ? "animate-lift-in editor-scrollbar mx-auto w-full max-w-2xl overflow-y-auto rounded-[28px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-[0_24px_80px_hsl(var(--foreground)/.12)]"
+          : "animate-lift-in editor-scrollbar max-h-[94dvh] w-full overflow-y-auto rounded-t-[28px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-[0_24px_80px_hsl(var(--foreground)/.22)] sm:max-w-2xl sm:rounded-[28px]"}
+        role={page ? undefined : 'dialog'}
+        aria-modal={page ? undefined : true}
         aria-labelledby="editor-title"
         data-testid="dialog-card-editor"
       >

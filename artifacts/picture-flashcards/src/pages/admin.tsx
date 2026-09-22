@@ -81,8 +81,7 @@ export default function Admin() {
   }, [cards]);
 
   const openCreate = () => {
-    setEditingCard(null);
-    setEditorOpen(true);
+    navigate('/add');
   };
 
   const openStart = () => {
