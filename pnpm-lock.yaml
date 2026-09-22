@@ -411,6 +411,10 @@ importers:
         version: 3.25.76
 
   artifacts/picture-flashcards:
+    dependencies:
+      react-image-crop:
+        specifier: ^11.1.2
+        version: 11.1.2(react@19.1.0)
     devDependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
@@ -2881,6 +2885,11 @@ packages:
     resolution: {integrity: sha512-LBLy340Rzqy6+/yVhZKT3B/QpP1BZaesGqasf09HPOBzRarcDIFH0WwXlXQfE7q7ipxK4MSiC5DIBWURCny6fw==}
     peerDependencies:
       react: '*'
+
+  react-image-crop@11.1.2:
+    resolution: {integrity: sha512-+0Pc2fxpwKL4u4oLmdKBw8XSwUceFbXbKEHvFOlsl/MGB1OVNic4uBlAPmEHGXYgoJIq+b63xHbc/aJMG0AVkA==}
+    peerDependencies:
+      react: '>=16.13.1'
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -5548,6 +5557,10 @@ snapshots:
       react: 19.1.0
 
   react-icons@5.7.0(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+
+  react-image-crop@11.1.2(react@19.1.0):
     dependencies:
       react: 19.1.0
 
