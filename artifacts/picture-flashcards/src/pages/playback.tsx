@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { ArrowRight, Library, Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
 import {
   getGetRandomCardQueryKey,
   useGetRandomCard,
@@ -37,9 +36,6 @@ export default function Playback() {
   const [playing, setPlaying] = useState(false);
   const [playbackOrder, setPlaybackOrder] = useState<Card[]>([]);
   const [playbackIndex, setPlaybackIndex] = useState(0);
-  const [playbackToken, setPlaybackToken] = useState(0);
-  const [loadedPlaybackToken, setLoadedPlaybackToken] = useState<number | null>(null);
-  const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef(0);
   const cardsQuery = useListCards();
@@ -55,6 +51,7 @@ export default function Playback() {
       ? window.location.search
       : (location.includes('?') ? location.slice(location.indexOf('?') + 1) : '');
     const rawCategories = new URLSearchParams(query).get('categories') ?? '';
+    if (!rawCategories.trim()) return [];
     return rawCategories
       .split(',')
       .map((value) => {
@@ -85,8 +82,6 @@ export default function Playback() {
 
   const movePlayback = (direction: 1 | -1) => {
     if (playbackOrder.length < 1) return;
-    setSlideDirection(direction);
-    setPlaybackToken((currentToken) => currentToken + 1);
     setPlaybackIndex((currentIndex) => (
       (currentIndex + direction + playbackOrder.length) % playbackOrder.length
     ));
@@ -101,8 +96,6 @@ export default function Playback() {
     if (order.length < 1) return;
     setPlaybackOrder(order);
     setPlaybackIndex(0);
-    setSlideDirection(1);
-    setPlaybackToken((currentToken) => currentToken + 1);
     setPlaying(true);
   };
 
@@ -181,39 +174,19 @@ export default function Playback() {
           }
         }}
       >
-        <div className="relative flex h-full w-full max-w-5xl items-center justify-center overflow-hidden">
-          <AnimatePresence initial={false} custom={slideDirection} mode="sync">
-            <motion.div
-              key={`${playbackCard.id}-${playbackToken}`}
-              custom={slideDirection}
-              variants={{
-                enter: (direction: number) => ({ x: `${direction * 100}%`, opacity: 0 }),
-                center: { x: 0, opacity: 1 },
-                exit: (direction: number) => ({ x: `${direction * -100}%`, opacity: 0 }),
-              }}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ type: 'spring', stiffness: 360, damping: 34, mass: 0.8 }}
-              className="absolute inset-0 flex flex-col items-center justify-center"
-            >
-              <img
-                src={playbackCard.imageUrl}
-                alt=""
-                onLoad={() => setLoadedPlaybackToken(playbackToken)}
-                className={`max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] shrink-0 rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)] ${loadedPlaybackToken === playbackToken ? '' : 'invisible'}`}
-              />
-              {loadedPlaybackToken === playbackToken && (
-                <FittedSingleLineTitle
-                  text={formatCardText(playbackCard.title, selectedTextCase)}
-                  level={1}
-                  maxFontSize={64}
-                  minFontSize={16}
-                  className="mt-5 w-full max-w-[92vw] shrink-0 text-center font-bold leading-tight tracking-[-0.025em]"
-                />
-              )}
-            </motion.div>
-          </AnimatePresence>
+        <div key={playbackCard.id} className="flex w-full max-w-5xl flex-col items-center justify-center gap-5">
+          <img
+            src={playbackCard.imageUrl}
+            alt=""
+            className="block max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] shrink-0 rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)]"
+          />
+          <FittedSingleLineTitle
+            text={formatCardText(playbackCard.title, selectedTextCase)}
+            level={1}
+            maxFontSize={64}
+            minFontSize={16}
+            className="w-full max-w-[92vw] shrink-0 text-center font-bold leading-tight tracking-[-0.025em]"
+          />
         </div>
       </main>
     );
