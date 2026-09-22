@@ -91,12 +91,6 @@ export default function Playback() {
     ));
   };
 
-  useEffect(() => {
-    if (!playing || playbackOrder.length < 1) return;
-    const timer = window.setInterval(() => movePlayback(1), 8000);
-    return () => window.clearInterval(timer);
-  }, [playing, playbackOrder.length]);
-
   const startPlayback = () => {
     startPlaybackWithCards(cardsQuery.data ?? []);
   };
