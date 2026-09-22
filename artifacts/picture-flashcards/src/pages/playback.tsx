@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { ArrowRight, Library, Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -24,6 +24,7 @@ function categoryKey(category: string | null | undefined) {
 }
 
 export default function Playback() {
+  const [location] = useLocation();
   const [category, setCategory] = useState('all');
   const [playing, setPlaying] = useState(false);
   const [playbackOrder, setPlaybackOrder] = useState<Card[]>([]);
@@ -40,6 +41,21 @@ export default function Playback() {
       refetchOnWindowFocus: false,
     },
   });
+  const selectedCategoryKeys = useMemo(() => {
+    const query = location.includes('?') ? location.slice(location.indexOf('?') + 1) : '';
+    const rawCategories = new URLSearchParams(query).get('categories') ?? '';
+    return rawCategories
+      .split(',')
+      .map((value) => {
+        try {
+          return decodeURIComponent(value);
+        } catch {
+          return value;
+        }
+      })
+      .map(categoryKey)
+      .filter(Boolean);
+  }, [location]);
   const categories = useMemo(
     () => {
       const labels = new Map<string, string>();
@@ -87,6 +103,10 @@ export default function Playback() {
     const cardsInSet = (cardsQuery.data ?? []).filter((item) => (
       category === 'all' || categoryKey(item.category) === selectedCategoryKey
     ));
+    startPlaybackWithCards(cardsInSet);
+  };
+
+  const startPlaybackWithCards = (cardsInSet: Card[]) => {
     const order = shuffleCards(cardsInSet);
     if (order.length < 1) return;
     setPlaybackOrder(order);
@@ -94,6 +114,19 @@ export default function Playback() {
     setSlideDirection(1);
     setPlaying(true);
   };
+
+  useEffect(() => {
+    if (
+      !selectedCategoryKeys.length
+      || cardsQuery.isLoading
+      || playing
+      || playbackOrder.length > 0
+    ) return;
+    const cardsInSet = (cardsQuery.data ?? []).filter((item) => (
+      selectedCategoryKeys.includes(categoryKey(item.category))
+    ));
+    startPlaybackWithCards(cardsInSet);
+  }, [cardsQuery.data, cardsQuery.isLoading, playbackOrder.length, playing, selectedCategoryKeys]);
 
   const isLoading = cardsQuery.isLoading || randomQuery.isLoading;
   const hasCards = (cardsQuery.data?.length ?? 0) > 0;

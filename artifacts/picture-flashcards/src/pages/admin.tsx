@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Check, CircleAlert, FolderOpen, LoaderCircle, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -24,7 +24,11 @@ export default function Admin() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Card | null>(null);
+  const [startOpen, setStartOpen] = useState(false);
+  const [selectedStartCategories, setSelectedStartCategories] = useState<string[]>([]);
   const [deleteError, setDeleteError] = useState('');
+  const [, navigate] = useLocation();
+  const allCardsQuery = useListCards();
   const cardsQuery = useListCards(category === 'all' ? undefined : { category });
   const summaryQuery = useGetCardsSummary();
   const healthQuery = useHealthCheck();
@@ -33,7 +37,7 @@ export default function Admin() {
   const categories = useMemo(
     () => {
       const labels = new Map<string, string>();
-      for (const card of cards) {
+      for (const card of allCardsQuery.data ?? []) {
         if (card.category?.trim()) {
           const label = card.category.trim();
           labels.set(categoryKey(label), labels.get(categoryKey(label)) ?? label);
@@ -41,7 +45,7 @@ export default function Admin() {
       }
       return Array.from(labels.values()).sort();
     },
-    [cards],
+    [allCardsQuery.data],
   );
   const groupedCards = useMemo(() => {
     const groups = new Map<string, { label: string; cards: Card[] }>();
@@ -66,6 +70,25 @@ export default function Admin() {
   const openCreate = () => {
     setEditingCard(null);
     setEditorOpen(true);
+  };
+
+  const openStart = () => {
+    setSelectedStartCategories([]);
+    setStartOpen(true);
+  };
+
+  const toggleStartCategory = (value: string) => {
+    const key = categoryKey(value);
+    setSelectedStartCategories((current) => (
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key]
+    ));
+  };
+
+  const beginPractice = () => {
+    if (!selectedStartCategories.length) return;
+    navigate(`/practice?categories=${selectedStartCategories.map((item) => encodeURIComponent(item)).join(',')}`);
   };
 
   const openEdit = (card: Card) => {
@@ -94,7 +117,7 @@ export default function Admin() {
     );
   };
 
-  const isLoading = cardsQuery.isLoading || summaryQuery.isLoading;
+  const isLoading = cardsQuery.isLoading || allCardsQuery.isLoading || summaryQuery.isLoading;
 
   return (
     <main className="paper-grain min-h-[100dvh] bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
@@ -106,9 +129,9 @@ export default function Admin() {
               <span className={`h-2 w-2 rounded-full ${healthQuery.isError ? 'bg-[hsl(var(--destructive))]' : 'bg-[hsl(var(--secondary))]'}`} />
               {healthQuery.isLoading ? 'Checking shelf' : healthQuery.isError ? 'Offline' : 'Shared shelf ready'}
             </div>
-            <Link href="/practice" className="rounded-full border border-[hsl(var(--border))] px-3.5 py-2 font-mono text-[0.6rem] font-bold uppercase tracking-[0.13em] text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--card))] hover:text-[hsl(var(--foreground))]" data-testid="link-open-practice">
-              Open practice
-            </Link>
+            <button type="button" onClick={openStart} className="rounded-full border border-[hsl(var(--border))] px-4 py-2 font-mono text-[0.6rem] font-bold uppercase tracking-[0.13em] text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--card))] hover:text-[hsl(var(--foreground))]" data-testid="button-start">
+              Start
+            </button>
           </div>
         </header>
 
@@ -177,6 +200,34 @@ export default function Admin() {
           <span className="font-mono uppercase tracking-[0.15em]">picture practice / catalogue</span>
         </footer>
       </div>
+
+      {startOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-[hsl(var(--foreground)/.38)] p-5 backdrop-blur-[3px]" role="presentation">
+          <div className="animate-lift-in w-full max-w-md rounded-[24px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 shadow-[0_24px_80px_hsl(var(--foreground)/.22)] sm:p-8" role="dialog" aria-modal="true" aria-labelledby="start-title" data-testid="dialog-start-practice">
+            <p className="font-mono text-[0.61rem] font-bold uppercase tracking-[0.18em] text-[hsl(var(--primary))]">Choose a practice set</p>
+            <h2 id="start-title" className="mt-2 font-serif text-3xl font-semibold leading-tight tracking-[-0.045em]">What should we practise?</h2>
+            <p className="mt-3 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">Choose one or more categories for this slideshow.</p>
+            <div className="mt-6 max-h-[42dvh] space-y-2 overflow-y-auto">
+              {categories.length > 0 ? categories.map((item) => {
+                const key = categoryKey(item);
+                const selected = selectedStartCategories.includes(key);
+                return (
+                  <label key={key} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 transition-colors ${selected ? 'border-[hsl(var(--primary))] bg-[hsl(var(--accent)/.14)]' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted)/.55)]'}`}>
+                    <input type="checkbox" checked={selected} onChange={() => toggleStartCategory(item)} className="h-4 w-4 accent-[hsl(var(--primary))]" data-testid={`checkbox-start-category-${key}`} />
+                    <span className="font-medium">{item}</span>
+                  </label>
+                );
+              }) : (
+                <p className="rounded-xl bg-[hsl(var(--muted)/.55)] p-4 text-sm text-[hsl(var(--muted-foreground))]">Add a card with a category before starting practice.</p>
+              )}
+            </div>
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setStartOpen(false)} className="h-11 rounded-xl px-4 text-sm font-semibold text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]" data-testid="button-cancel-start">Cancel</button>
+              <button type="button" onClick={beginPractice} disabled={!selectedStartCategories.length} className="h-11 rounded-xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))] disabled:cursor-not-allowed disabled:opacity-50" data-testid="button-confirm-start">Start</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <CardEditorDialog open={editorOpen} card={editingCard} onClose={closeEditor} onSaved={closeEditor} />
 
