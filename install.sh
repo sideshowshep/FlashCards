@@ -130,6 +130,9 @@ install_dependencies_and_build() {
   echo "Installing workspace dependencies locally..."
   "${PNPM_CMD[@]}" install --frozen-lockfile
 
+  echo "Building shared workspace libraries..."
+  "${PNPM_CMD[@]}" run typecheck:libs
+
   echo "Checking the API and frontend..."
   "${PNPM_CMD[@]}" --filter @workspace/api-server run typecheck
   "${PNPM_CMD[@]}" --filter @workspace/picture-flashcards run typecheck
