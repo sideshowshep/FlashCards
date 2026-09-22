@@ -14,6 +14,7 @@ import type { Card } from '@workspace/api-client-react';
 import { BrandMark } from '@/components/brand-mark';
 import { CardEditorDialog } from '@/components/card-editor-dialog';
 import { FittedSingleLineTitle } from '@/components/fitted-single-line-title';
+import type { CardTextCase } from '@/lib/card-text';
 
 function categoryKey(category: string | null | undefined) {
   return category?.trim().toLocaleLowerCase() ?? '';
@@ -27,6 +28,7 @@ export default function Admin() {
   const [deleteTarget, setDeleteTarget] = useState<Card | null>(null);
   const [startOpen, setStartOpen] = useState(false);
   const [selectedStartCategories, setSelectedStartCategories] = useState<string[]>([]);
+  const [startTextCase, setStartTextCase] = useState<CardTextCase>('upper');
   const [deleteError, setDeleteError] = useState('');
   const [, navigate] = useLocation();
   const allCardsQuery = useListCards();
@@ -75,6 +77,7 @@ export default function Admin() {
 
   const openStart = () => {
     setSelectedStartCategories([]);
+    setStartTextCase('upper');
     setStartOpen(true);
   };
 
@@ -89,7 +92,7 @@ export default function Admin() {
 
   const beginPractice = () => {
     if (!selectedStartCategories.length) return;
-    navigate(`/practice?categories=${selectedStartCategories.map((item) => encodeURIComponent(item)).join(',')}`);
+    navigate(`/practice?categories=${selectedStartCategories.map((item) => encodeURIComponent(item)).join(',')}&textCase=${encodeURIComponent(startTextCase)}`);
   };
 
   const openEdit = (card: Card) => {
@@ -222,6 +225,14 @@ export default function Admin() {
                 <p className="rounded-xl bg-[hsl(var(--muted)/.55)] p-4 text-sm text-[hsl(var(--muted-foreground))]">Add a card with a category before starting practice.</p>
               )}
             </div>
+            <label className="mt-5 block">
+              <span className="mb-2 block font-mono text-[0.61rem] font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">Card text</span>
+              <select value={startTextCase} onChange={(event) => setStartTextCase(event.target.value as CardTextCase)} className="h-11 w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.75)] px-3 text-sm font-medium text-[hsl(var(--foreground))]" data-testid="select-start-text-case">
+                <option value="upper">Upper case</option>
+                <option value="mixed">Mixed case</option>
+                <option value="lower">Lower case</option>
+              </select>
+            </label>
             <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setStartOpen(false)} className="h-11 rounded-xl px-4 text-sm font-semibold text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]" data-testid="button-cancel-start">Cancel</button>
               <button type="button" onClick={beginPractice} disabled={!selectedStartCategories.length} className="h-11 rounded-xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))] disabled:cursor-not-allowed disabled:opacity-50" data-testid="button-confirm-start">Start</button>
