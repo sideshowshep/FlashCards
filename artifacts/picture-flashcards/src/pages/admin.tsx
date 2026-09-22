@@ -14,6 +14,10 @@ import type { Card } from '@workspace/api-client-react';
 import { BrandMark } from '@/components/brand-mark';
 import { CardEditorDialog } from '@/components/card-editor-dialog';
 
+function categoryKey(category: string | null | undefined) {
+  return category?.trim().toLocaleLowerCase() ?? '';
+}
+
 export default function Admin() {
   const queryClient = useQueryClient();
   const [category, setCategory] = useState('all');
@@ -27,20 +31,36 @@ export default function Admin() {
   const deleteCard = useDeleteCard();
   const cards = cardsQuery.data ?? [];
   const categories = useMemo(
-    () => Array.from(new Set(cards.map((card) => card.category).filter((value): value is string => Boolean(value)))).sort(),
+    () => {
+      const labels = new Map<string, string>();
+      for (const card of cards) {
+        if (card.category?.trim()) {
+          const label = card.category.trim();
+          labels.set(categoryKey(label), labels.get(categoryKey(label)) ?? label);
+        }
+      }
+      return Array.from(labels.values()).sort();
+    },
     [cards],
   );
   const groupedCards = useMemo(() => {
-    const groups = new Map<string, Card[]>();
+    const groups = new Map<string, { label: string; cards: Card[] }>();
     for (const card of cards) {
-      const group = card.category?.trim() || 'Uncategorized';
-      groups.set(group, [...(groups.get(group) ?? []), card]);
+      const key = categoryKey(card.category) || 'uncategorized';
+      const group = groups.get(key) ?? {
+        label: card.category?.trim() || 'Uncategorized',
+        cards: [],
+      };
+      group.cards.push(card);
+      groups.set(key, group);
     }
-    return Array.from(groups.entries()).sort(([left], [right]) => {
-      if (left === 'Uncategorized') return 1;
-      if (right === 'Uncategorized') return -1;
-      return left.localeCompare(right);
-    });
+    return Array.from(groups.values())
+      .sort((left, right) => {
+        if (left.label === 'Uncategorized') return 1;
+        if (right.label === 'Uncategorized') return -1;
+        return left.label.localeCompare(right.label);
+      })
+      .map((group) => [group.label, group.cards] as const);
   }, [cards]);
 
   const openCreate = () => {

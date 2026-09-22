@@ -19,6 +19,10 @@ function shuffleCards(cards: Card[]) {
   return shuffled;
 }
 
+function categoryKey(category: string | null | undefined) {
+  return category?.trim().toLocaleLowerCase() ?? '';
+}
+
 export default function Playback() {
   const [category, setCategory] = useState('all');
   const [playing, setPlaying] = useState(false);
@@ -37,7 +41,16 @@ export default function Playback() {
     },
   });
   const categories = useMemo(
-    () => Array.from(new Set((cardsQuery.data ?? []).map((card) => card.category).filter((value): value is string => Boolean(value)))).sort(),
+    () => {
+      const labels = new Map<string, string>();
+      for (const card of cardsQuery.data ?? []) {
+        if (card.category?.trim()) {
+          const label = card.category.trim();
+          labels.set(categoryKey(label), labels.get(categoryKey(label)) ?? label);
+        }
+      }
+      return Array.from(labels.values()).sort();
+    },
     [cardsQuery.data],
   );
   const card = randomQuery.data;
@@ -70,7 +83,10 @@ export default function Playback() {
   }, [playing, playbackOrder.length]);
 
   const startPlayback = () => {
-    const cardsInSet = (cardsQuery.data ?? []).filter((item) => category === 'all' || item.category === category);
+    const selectedCategoryKey = categoryKey(category);
+    const cardsInSet = (cardsQuery.data ?? []).filter((item) => (
+      category === 'all' || categoryKey(item.category) === selectedCategoryKey
+    ));
     const order = shuffleCards(cardsInSet);
     if (order.length < 1) return;
     setPlaybackOrder(order);

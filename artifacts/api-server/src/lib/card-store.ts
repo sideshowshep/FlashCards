@@ -71,6 +71,10 @@ function normaliseCategory(category: string | null | undefined) {
   return value ? value : null;
 }
 
+function categoryKey(category: string | null | undefined) {
+  return category?.trim().toLocaleLowerCase() ?? "";
+}
+
 function getCenteredPortraitCrop(width: number, height: number): Crop {
   const aspect = 4 / 5;
   const cropWidth = width / height >= aspect ? height * aspect : width;
@@ -148,8 +152,9 @@ async function prepareImage(
 
 export async function listCards(category?: string) {
   const cards = await readCards();
-  const filtered = category?.trim()
-    ? cards.filter((card) => card.category === category.trim())
+  const requestedCategory = categoryKey(category);
+  const filtered = requestedCategory
+    ? cards.filter((card) => categoryKey(card.category) === requestedCategory)
     : cards;
   return filtered.sort((a, b) => a.title.localeCompare(b.title));
 }
@@ -166,6 +171,7 @@ export async function getSummary() {
     cards
       .map((card) => card.category)
       .filter((category): category is string => Boolean(category)),
+      .map((category) => categoryKey(category)),
   );
   return {
     total: cards.length,

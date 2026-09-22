@@ -34,5 +34,14 @@
     "imageFile": "91891c82-0779-45ed-a0ed-ca3303121c01.jpg",
     "createdAt": "2026-09-22T16:56:26.889Z",
     "updatedAt": "2026-09-22T16:56:26.889Z"
+  },
+  {
+    "id": "a637e22c-328d-4ebe-8c63-43f9d3c56865",
+    "title": "Curtis",
+    "category": "people",
+    "imageUrl": "/api/cards/images/a637e22c-328d-4ebe-8c63-43f9d3c56865.jpg",
+    "imageFile": "a637e22c-328d-4ebe-8c63-43f9d3c56865.jpg",
+    "createdAt": "2026-09-22T17:17:00.382Z",
+    "updatedAt": "2026-09-22T17:17:00.382Z"
   }
 ]
