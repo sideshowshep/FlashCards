@@ -92,17 +92,10 @@ export default function Admin() {
           </div>
         </header>
 
-        <section className="pb-8 pt-12 sm:pb-11 sm:pt-16">
-          <div className="flex flex-col justify-between gap-7 lg:flex-row lg:items-end">
-            <div className="animate-lift-in">
-              <p className="mb-3 font-mono text-[0.63rem] font-bold uppercase tracking-[0.2em] text-[hsl(var(--primary))]">The shared shelf</p>
-              <h1 className="max-w-2xl font-serif text-5xl font-semibold leading-[0.91] tracking-[-0.06em] sm:text-7xl">Build a world<br className="hidden sm:block" /> worth naming.</h1>
-              <p className="mt-5 max-w-lg text-base leading-relaxed text-[hsl(var(--muted-foreground))]">Choose pictures that belong to your everyday life. They will become the prompts for a few minutes of careful looking together.</p>
-            </div>
-            <button type="button" onClick={openCreate} className="inline-flex h-12 w-fit items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 font-semibold text-[hsl(var(--primary-foreground))] shadow-[3px_3px_0_hsl(var(--foreground)/.16)] transition-transform hover:-translate-y-0.5 animate-lift-in delay-1" data-testid="button-add-card">
-              <Plus size={18} /> Add picture
-            </button>
-          </div>
+        <section className="flex justify-end pb-8 pt-10 sm:pb-11 sm:pt-12">
+          <button type="button" onClick={openCreate} className="inline-flex h-12 w-fit items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 font-semibold text-[hsl(var(--primary-foreground))] shadow-[3px_3px_0_hsl(var(--foreground)/.16)] transition-transform hover:-translate-y-0.5 animate-lift-in" data-testid="button-add-card">
+            <Plus size={18} /> Add picture
+          </button>
         </section>
 
         <section className="pb-12 pt-12 sm:pt-14">
