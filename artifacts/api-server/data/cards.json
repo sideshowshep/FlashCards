@@ -1,1 +1,29 @@
-[]
+[
+  {
+    "id": "c19e502e-dff8-47e1-849c-7dfa43396af6",
+    "title": "Grandad",
+    "category": "People",
+    "imageUrl": "/api/cards/images/c19e502e-dff8-47e1-849c-7dfa43396af6.jpg",
+    "imageFile": "c19e502e-dff8-47e1-849c-7dfa43396af6.jpg",
+    "createdAt": "2026-09-22T16:00:33.510Z",
+    "updatedAt": "2026-09-22T16:00:33.510Z"
+  },
+  {
+    "id": "3e6ddc99-1b60-4477-9871-1609669bc5af",
+    "title": "Gary",
+    "category": "People",
+    "imageUrl": "/api/cards/images/3e6ddc99-1b60-4477-9871-1609669bc5af.jpg",
+    "imageFile": "3e6ddc99-1b60-4477-9871-1609669bc5af.jpg",
+    "createdAt": "2026-09-22T16:02:08.029Z",
+    "updatedAt": "2026-09-22T16:02:08.029Z"
+  },
+  {
+    "id": "7bee8f00-99cb-44f5-ad89-5189298deaaa",
+    "title": "McKean",
+    "category": "People",
+    "imageUrl": "/api/cards/images/7bee8f00-99cb-44f5-ad89-5189298deaaa.jpg",
+    "imageFile": "7bee8f00-99cb-44f5-ad89-5189298deaaa.jpg",
+    "createdAt": "2026-09-22T16:02:43.294Z",
+    "updatedAt": "2026-09-22T16:02:43.294Z"
+  }
+]
