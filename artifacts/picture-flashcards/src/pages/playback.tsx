@@ -197,7 +197,7 @@ export default function Playback() {
                 alt=""
                 className="max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)]"
               />
-              <h1 className="mt-5 text-center text-4xl font-bold leading-tight tracking-[-0.025em] sm:text-6xl">
+              <h1 className="mt-5 max-w-[92vw] truncate whitespace-nowrap text-center text-[clamp(2rem,10vw,4.5rem)] font-bold leading-tight tracking-[-0.025em]">
                 {playbackCard.title}
               </h1>
             </motion.div>
@@ -271,7 +271,7 @@ export default function Playback() {
                 <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-7">
                   <div>
                     <p className="mb-1 font-mono text-[0.6rem] font-bold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">Picture card</p>
-                    <h2 className="font-serif text-3xl font-semibold tracking-[-0.045em] sm:text-4xl" data-testid={`text-playback-title-${card.id}`}>{card.title}</h2>
+                    <h2 className="max-w-full truncate whitespace-nowrap font-serif text-4xl font-semibold tracking-[-0.045em]" data-testid={`text-playback-title-${card.id}`}>{card.title}</h2>
                   </div>
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={() => (playing ? setPlaying(false) : startPlayback())} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[hsl(var(--secondary))] px-4 text-sm font-semibold text-[hsl(var(--secondary-foreground))] transition-transform hover:-translate-y-0.5" data-testid="button-toggle-playback">
