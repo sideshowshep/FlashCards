@@ -233,9 +233,6 @@ export function CardEditorDialog({ open, card, onClose, onSaved, page = false }:
       >
         <div className="flex items-start justify-between gap-4 border-b border-[hsl(var(--border))] px-5 py-5 sm:px-8 sm:py-7">
           <div>
-            <p className="mb-1 font-mono text-[0.63rem] font-bold uppercase tracking-[0.2em] text-[hsl(var(--primary))]">
-              {isEditing ? 'Refine a card' : 'Add to the shelf'}
-            </p>
             <h2 id="editor-title" className="font-serif text-3xl font-semibold tracking-[-0.04em] text-[hsl(var(--foreground))]">
               {isEditing ? 'Edit picture card' : 'New picture card'}
             </h2>
