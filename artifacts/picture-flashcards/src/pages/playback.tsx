@@ -25,6 +25,12 @@ function categoryKey(category: string | null | undefined) {
   return category?.trim().toLocaleLowerCase() ?? '';
 }
 
+const UNCATEGORISED_CATEGORY_KEY = '__uncategorised__';
+
+function selectedCategoryKey(category: string | null | undefined) {
+  return categoryKey(category) || UNCATEGORISED_CATEGORY_KEY;
+}
+
 export default function Playback() {
   const [location, navigate] = useLocation();
   const [playing, setPlaying] = useState(false);
@@ -57,8 +63,9 @@ export default function Playback() {
           return value;
         }
       })
-      .map(categoryKey)
-      .filter(Boolean);
+      .map((category) => category === UNCATEGORISED_CATEGORY_KEY
+        ? UNCATEGORISED_CATEGORY_KEY
+        : categoryKey(category));
   }, [location]);
   const selectedTextCase = useMemo<CardTextCase>(() => {
     const query = typeof window !== 'undefined'
@@ -112,7 +119,7 @@ export default function Playback() {
       || playbackOrder.length > 0
     ) return;
     const cardsInSet = (cardsQuery.data ?? []).filter((item) => (
-      selectedCategoryKeys.includes(categoryKey(item.category))
+      selectedCategoryKeys.includes(selectedCategoryKey(item.category))
     ));
     startPlaybackWithCards(cardsInSet);
   }, [cardsQuery.data, cardsQuery.isLoading, playbackOrder.length, playing, selectedCategoryKeys]);

@@ -19,6 +19,9 @@ function categoryKey(category: string | null | undefined) {
   return category?.trim().toLocaleLowerCase() ?? '';
 }
 
+const UNCATEGORISED_CATEGORY_KEY = '__uncategorised__';
+const UNCATEGORISED_LABEL = 'Uncategorised';
+
 export default function Admin() {
   const queryClient = useQueryClient();
   const [editorOpen, setEditorOpen] = useState(false);
@@ -38,13 +41,22 @@ export default function Admin() {
   const categories = useMemo(
     () => {
       const labels = new Map<string, string>();
+      let hasUncategorised = false;
       for (const card of cards) {
         if (card.category?.trim()) {
           const label = card.category.trim();
           labels.set(categoryKey(label), labels.get(categoryKey(label)) ?? label);
+        } else {
+          hasUncategorised = true;
         }
       }
-      return Array.from(labels.values()).sort();
+      const options = Array.from(labels.entries())
+        .map(([key, label]) => ({ key, label }))
+        .sort((left, right) => left.label.localeCompare(right.label));
+      if (hasUncategorised) {
+        options.push({ key: UNCATEGORISED_CATEGORY_KEY, label: UNCATEGORISED_LABEL });
+      }
+      return options;
     },
     [cards],
   );
@@ -53,7 +65,7 @@ export default function Admin() {
     for (const card of cards) {
       const key = categoryKey(card.category) || 'uncategorized';
       const group = groups.get(key) ?? {
-        label: card.category?.trim() || 'Uncategorized',
+        label: card.category?.trim() || UNCATEGORISED_LABEL,
         cards: [],
       };
       group.cards.push(card);
@@ -61,8 +73,8 @@ export default function Admin() {
     }
     return Array.from(groups.values())
       .sort((left, right) => {
-        if (left.label === 'Uncategorized') return 1;
-        if (right.label === 'Uncategorized') return -1;
+        if (left.label === UNCATEGORISED_LABEL) return 1;
+        if (right.label === UNCATEGORISED_LABEL) return -1;
         return left.label.localeCompare(right.label);
       })
       .map((group) => [group.label, group.cards] as const);
@@ -79,8 +91,7 @@ export default function Admin() {
     setStartOpen(true);
   };
 
-  const toggleStartCategory = (value: string) => {
-    const key = categoryKey(value);
+  const toggleStartCategory = (key: string) => {
     setSelectedStartCategories((current) => (
       current.includes(key)
         ? current.filter((item) => item !== key)
@@ -234,12 +245,11 @@ export default function Admin() {
             <p className="mt-3 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">Choose one or more categories for this slideshow.</p>
             <div className="mt-6 max-h-[42dvh] space-y-2 overflow-y-auto">
               {categories.length > 0 ? categories.map((item) => {
-                const key = categoryKey(item);
-                const selected = selectedStartCategories.includes(key);
+                const selected = selectedStartCategories.includes(item.key);
                 return (
-                  <label key={key} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 transition-colors ${selected ? 'border-[hsl(var(--primary))] bg-[hsl(var(--accent)/.14)]' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted)/.55)]'}`}>
-                    <input type="checkbox" checked={selected} onChange={() => toggleStartCategory(item)} className="h-4 w-4 accent-[hsl(var(--primary))]" data-testid={`checkbox-start-category-${key}`} />
-                    <span className="font-medium">{item}</span>
+                  <label key={item.key} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 transition-colors ${selected ? 'border-[hsl(var(--primary))] bg-[hsl(var(--accent)/.14)]' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted)/.55)]'}`}>
+                    <input type="checkbox" checked={selected} onChange={() => toggleStartCategory(item.key)} className="h-4 w-4 accent-[hsl(var(--primary))]" data-testid={`checkbox-start-category-${item.key}`} />
+                    <span className="font-medium">{item.label}</span>
                   </label>
                 );
               }) : (
