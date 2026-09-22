@@ -16,6 +16,25 @@ type CardEditorDialogProps = {
   onSaved: () => void;
 };
 
+type ImageSize = { width: number; height: number };
+
+function getCrop(imageSize: ImageSize, zoom: number, focusX: number, focusY: number) {
+  const aspect = 2;
+  const baseWidth =
+    imageSize.width / imageSize.height >= aspect
+      ? imageSize.height * aspect
+      : imageSize.width;
+  const baseHeight = baseWidth / aspect;
+  const width = baseWidth / zoom;
+  const height = baseHeight / zoom;
+  return {
+    x: (imageSize.width - width) * focusX,
+    y: (imageSize.height - height) * focusY,
+    width,
+    height,
+  };
+}
+
 export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDialogProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -23,6 +42,11 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
   const [category, setCategory] = useState('');
   const [imageData, setImageData] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
+  const [fileLabel, setFileLabel] = useState('');
+  const [imageSize, setImageSize] = useState<ImageSize>();
+  const [zoom, setZoom] = useState(1);
+  const [focusX, setFocusX] = useState(0.5);
+  const [focusY, setFocusY] = useState(0.5);
   const [error, setError] = useState('');
   const createCard = useCreateCard();
   const updateCard = useUpdateCard();
@@ -35,6 +59,11 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
     setCategory(card?.category ?? '');
     setImageData('');
     setPreviewUrl(card?.imageUrl ?? '');
+    setFileLabel('');
+    setImageSize(undefined);
+    setZoom(1);
+    setFocusX(0.5);
+    setFocusY(0.5);
     setError('');
   }, [card, open]);
 
@@ -42,7 +71,8 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
 
   const handleFile = (file?: File) => {
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
+    const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || /\.(heic|heif)$/i.test(file.name);
+    if (!file.type.startsWith('image/') && !isHeic) {
       setError('Choose an image file to continue.');
       return;
     }
@@ -50,11 +80,21 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
       setError('That image is larger than 8 MB. Choose a smaller one.');
       return;
     }
+    setFileLabel(file.name);
+    setImageSize(undefined);
+    setZoom(1);
+    setFocusX(0.5);
+    setFocusY(0.5);
     const reader = new FileReader();
     reader.onload = () => {
       const result = typeof reader.result === 'string' ? reader.result : '';
       setImageData(result);
-      setPreviewUrl(result);
+      setPreviewUrl(isHeic ? '' : result);
+      if (!isHeic && result) {
+        const image = new window.Image();
+        image.onload = () => setImageSize({ width: image.naturalWidth, height: image.naturalHeight });
+        image.src = result;
+      }
       setError('');
     };
     reader.onerror = () => setError('The image could not be read. Try again.');
@@ -79,6 +119,7 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
       return;
     }
     setError('');
+    const crop = imageData && imageSize ? getCrop(imageSize, zoom, focusX, focusY) : undefined;
     if (card) {
       updateCard.mutate(
         {
@@ -87,6 +128,7 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
             title: trimmedTitle,
             category: trimmedCategory || null,
             ...(imageData ? { imageData } : {}),
+            ...(crop ? { crop } : {}),
           },
         },
         {
@@ -104,6 +146,7 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
             title: trimmedTitle,
             category: trimmedCategory || null,
             imageData,
+            ...(crop ? { crop } : {}),
           },
         },
         {
@@ -153,22 +196,71 @@ export function CardEditorDialog({ open, card, onClose, onSaved }: CardEditorDia
             >
               {previewUrl ? (
                 <>
-                  <img src={previewUrl} alt="Selected card preview" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" data-testid="img-card-preview" />
+                  <div className="relative h-full w-full overflow-hidden">
+                    {imageSize && imageData ? (
+                      <img
+                        src={previewUrl}
+                        alt="Selected card preview"
+                        className="absolute max-w-none"
+                        style={(() => {
+                          const crop = getCrop(imageSize, zoom, focusX, focusY);
+                          return {
+                            width: `${(imageSize.width / crop.width) * 100}%`,
+                            height: `${(imageSize.height / crop.height) * 100}%`,
+                            left: `-${(crop.x / crop.width) * 100}%`,
+                            top: `-${(crop.y / crop.height) * 100}%`,
+                          };
+                        })()}
+                        data-testid="img-card-preview"
+                      />
+                    ) : (
+                      <img src={previewUrl} alt="Selected card preview" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" data-testid="img-card-preview" />
+                    )}
+                    {imageData && <span className="pointer-events-none absolute inset-0 border-[3px] border-[hsl(var(--card)/.82)]" />}
+                  </div>
                   <span className="absolute bottom-3 right-3 rounded-full bg-[hsl(var(--foreground)/.78)] px-3 py-1.5 font-mono text-[0.6rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--card))]">
                     Replace image
                   </span>
                 </>
+              ) : imageData ? (
+                <span className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+                  <ImagePlus size={26} strokeWidth={1.5} className="text-[hsl(var(--primary))]" />
+                  <span className="font-medium text-[hsl(var(--foreground))]">HEIC image ready</span>
+                  <span className="max-w-xs text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{fileLabel || 'The server will convert this image for playback.'}</span>
+                  <span className="rounded-full bg-[hsl(var(--foreground)/.08)] px-3 py-1 font-mono text-[0.58rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--muted-foreground))]">Converted when saved</span>
+                </span>
               ) : (
                 <span className="flex h-full flex-col items-center justify-center gap-2 text-center">
                   <ImagePlus size={26} strokeWidth={1.5} className="text-[hsl(var(--primary))]" />
                   <span className="font-medium text-[hsl(var(--foreground))]">Choose a clear, real picture</span>
-                  <span className="text-xs text-[hsl(var(--muted-foreground))]">JPG, PNG, or WEBP · up to 8 MB</span>
+                  <span className="text-xs text-[hsl(var(--muted-foreground))]">JPG, PNG, WEBP, or HEIC · up to 8 MB</span>
                 </span>
               )}
             </button>
-            <input ref={fileInputRef} id="card-image" type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => handleFile(event.target.files?.[0])} data-testid="input-image-upload" />
-            <p className="mt-2 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">The preview keeps the picture framed for a card. You can replace it any time.</p>
+            <input ref={fileInputRef} id="card-image" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif" className="sr-only" onChange={(event) => handleFile(event.target.files?.[0])} data-testid="input-image-upload" />
+            <p className="mt-2 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">Use the framing controls below to choose what stays in view. HEIC photos are converted on the server.</p>
           </div>
+
+          {imageData && imageSize && (
+            <div className="space-y-3 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/.35)] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-mono text-[0.64rem] font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">Frame this picture</p>
+                <span className="text-xs text-[hsl(var(--muted-foreground))]">Drag the sliders</span>
+              </div>
+              <label className="grid grid-cols-[5rem_1fr] items-center gap-3 text-sm">
+                <span>Zoom</span>
+                <input type="range" min="1" max="3" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} aria-label="Picture zoom" />
+              </label>
+              <label className="grid grid-cols-[5rem_1fr] items-center gap-3 text-sm">
+                <span>Across</span>
+                <input type="range" min="0" max="1" step="0.01" value={focusX} onChange={(event) => setFocusX(Number(event.target.value))} aria-label="Picture horizontal position" />
+              </label>
+              <label className="grid grid-cols-[5rem_1fr] items-center gap-3 text-sm">
+                <span>Up / down</span>
+                <input type="range" min="0" max="1" step="0.01" value={focusY} onChange={(event) => setFocusY(Number(event.target.value))} aria-label="Picture vertical position" />
+              </label>
+            </div>
+          )}
 
           <div className="grid gap-5 sm:grid-cols-[1fr_0.72fr]">
             <label className="block">

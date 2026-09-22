@@ -1,0 +1,1 @@
+- [Generated client DOM types](generated-client-dom-types.md) — include DOM iterable typings for Orval fetch helpers.
