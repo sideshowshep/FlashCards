@@ -36,6 +36,7 @@ export default function Playback() {
   const [playing, setPlaying] = useState(false);
   const [playbackOrder, setPlaybackOrder] = useState<Card[]>([]);
   const [playbackIndex, setPlaybackIndex] = useState(0);
+  const [loadedPlaybackCardId, setLoadedPlaybackCardId] = useState<string | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef(0);
   const cardsQuery = useListCards();
@@ -82,6 +83,7 @@ export default function Playback() {
 
   const movePlayback = (direction: 1 | -1) => {
     if (playbackOrder.length < 1) return;
+    setLoadedPlaybackCardId(null);
     setPlaybackIndex((currentIndex) => (
       (currentIndex + direction + playbackOrder.length) % playbackOrder.length
     ));
@@ -96,6 +98,7 @@ export default function Playback() {
     if (order.length < 1) return;
     setPlaybackOrder(order);
     setPlaybackIndex(0);
+    setLoadedPlaybackCardId(null);
     setPlaying(true);
   };
 
@@ -178,15 +181,18 @@ export default function Playback() {
           <img
             src={playbackCard.imageUrl}
             alt=""
+            onLoad={() => setLoadedPlaybackCardId(playbackCard.id)}
             className="block max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] shrink-0 rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)]"
           />
-          <FittedSingleLineTitle
-            text={formatCardText(playbackCard.title, selectedTextCase)}
-            level={1}
-            maxFontSize={64}
-            minFontSize={16}
-            className="w-full max-w-[92vw] shrink-0 text-center font-bold leading-tight tracking-[-0.025em]"
-          />
+          {loadedPlaybackCardId === playbackCard.id && (
+            <FittedSingleLineTitle
+              text={formatCardText(playbackCard.title, selectedTextCase)}
+              level={1}
+              maxFontSize={64}
+              minFontSize={16}
+              className="w-full max-w-[92vw] shrink-0 text-center font-bold leading-tight tracking-[-0.025em]"
+            />
+          )}
         </div>
       </main>
     );
