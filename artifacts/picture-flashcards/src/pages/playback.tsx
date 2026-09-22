@@ -1,16 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { ArrowRight, Library, Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   getGetRandomCardQueryKey,
   useGetRandomCard,
   useListCards,
 } from '@workspace/api-client-react';
+import type { Card } from '@workspace/api-client-react';
 import { BrandMark } from '@/components/brand-mark';
+
+function shuffleCards(cards: Card[]) {
+  const shuffled = [...cards];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
 
 export default function Playback() {
   const [category, setCategory] = useState('all');
   const [playing, setPlaying] = useState(false);
+  const [playbackOrder, setPlaybackOrder] = useState<Card[]>([]);
+  const [playbackIndex, setPlaybackIndex] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef(0);
   const cardsQuery = useListCards();
@@ -27,18 +41,13 @@ export default function Playback() {
     [cardsQuery.data],
   );
   const card = randomQuery.data;
-
-  useEffect(() => {
-    if (!playing || !card) return;
-    const timer = window.setInterval(() => {
-      void randomQuery.refetch();
-    }, 8000);
-    return () => window.clearInterval(timer);
-  }, [card, playing, randomQuery.refetch]);
+  const playbackCard = playbackOrder[playbackIndex];
 
   const chooseCategory = (value: string) => {
     setPlaying(false);
     setCategory(value);
+    setPlaybackOrder([]);
+    setPlaybackIndex(0);
   };
 
   const nextCard = () => {
@@ -46,15 +55,34 @@ export default function Playback() {
     void randomQuery.refetch();
   };
 
+  const movePlayback = (direction: 1 | -1) => {
+    if (playbackOrder.length < 1) return;
+    setSlideDirection(direction);
+    setPlaybackIndex((currentIndex) => (
+      (currentIndex + direction + playbackOrder.length) % playbackOrder.length
+    ));
+  };
+
+  useEffect(() => {
+    if (!playing || playbackOrder.length < 1) return;
+    const timer = window.setInterval(() => movePlayback(1), 8000);
+    return () => window.clearInterval(timer);
+  }, [playing, playbackOrder.length]);
+
   const startPlayback = () => {
+    const cardsInSet = (cardsQuery.data ?? []).filter((item) => category === 'all' || item.category === category);
+    const order = shuffleCards(cardsInSet);
+    if (order.length < 1) return;
+    setPlaybackOrder(order);
+    setPlaybackIndex(0);
+    setSlideDirection(1);
     setPlaying(true);
-    void randomQuery.refetch();
   };
 
   const isLoading = cardsQuery.isLoading || randomQuery.isLoading;
   const hasCards = (cardsQuery.data?.length ?? 0) > 0;
 
-  if (playing && card) {
+  if (playing && playbackCard) {
     return (
       <main
         className="playback-focus playback-education-font fixed inset-0 z-50 flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-[hsl(var(--background))] px-5 py-6 text-[hsl(var(--foreground))]"
@@ -80,7 +108,7 @@ export default function Playback() {
 
           if (isSwipe) {
             lastTapRef.current = 0;
-            void randomQuery.refetch();
+            movePlayback(deltaX < 0 ? 1 : -1);
             return;
           }
 
@@ -97,14 +125,33 @@ export default function Playback() {
           }
         }}
       >
-        <img
-          src={card.imageUrl}
-          alt=""
-          className="max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)]"
-        />
-        <h1 className="mt-5 text-center text-4xl font-bold leading-tight tracking-[-0.025em] sm:text-6xl">
-          {card.title}
-        </h1>
+        <div className="relative flex h-full w-full max-w-5xl items-center justify-center overflow-hidden">
+          <AnimatePresence initial={false} custom={slideDirection} mode="sync">
+            <motion.div
+              key={playbackCard.id}
+              custom={slideDirection}
+              variants={{
+                enter: (direction: number) => ({ x: `${direction * 100}%`, opacity: 0 }),
+                center: { x: 0, opacity: 1 },
+                exit: (direction: number) => ({ x: `${direction * -100}%`, opacity: 0 }),
+              }}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ type: 'spring', stiffness: 360, damping: 34, mass: 0.8 }}
+              className="absolute inset-0 flex flex-col items-center justify-center"
+            >
+              <img
+                src={playbackCard.imageUrl}
+                alt=""
+                className="max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)]"
+              />
+              <h1 className="mt-5 text-center text-4xl font-bold leading-tight tracking-[-0.025em] sm:text-6xl">
+                {playbackCard.title}
+              </h1>
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </main>
     );
   }
