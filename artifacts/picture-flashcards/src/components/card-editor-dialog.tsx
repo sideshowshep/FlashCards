@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ImagePlus, LoaderCircle, X } from 'lucide-react';
 import ReactCrop, {
@@ -11,6 +11,7 @@ import {
   getGetCardsSummaryQueryKey,
   getListCardsQueryKey,
   useCreateCard,
+  useListCards,
   useUpdateCard,
 } from '@workspace/api-client-react';
 import type { Card } from '@workspace/api-client-react';
@@ -90,6 +91,7 @@ export function CardEditorDialog({ open, card, onClose, onSaved, page = false }:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
+  const [categoryFocused, setCategoryFocused] = useState(false);
   const [imageData, setImageData] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [fileLabel, setFileLabel] = useState('');
@@ -98,8 +100,23 @@ export function CardEditorDialog({ open, card, onClose, onSaved, page = false }:
   const [error, setError] = useState('');
   const createCard = useCreateCard();
   const updateCard = useUpdateCard();
+  const cardsQuery = useListCards();
   const isEditing = Boolean(card);
   const isPending = createCard.isPending || updateCard.isPending;
+  const categoryOptions = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const item of cardsQuery.data ?? []) {
+      const label = item.category?.trim();
+      if (label) labels.set(label.toLocaleLowerCase(), label);
+    }
+    return Array.from(labels.values()).sort((left, right) => left.localeCompare(right));
+  }, [cardsQuery.data]);
+  const matchingCategories = useMemo(() => {
+    const query = category.trim().toLocaleLowerCase();
+    return categoryOptions
+      .filter((option) => !query || option.toLocaleLowerCase().includes(query))
+      .slice(0, 8);
+  }, [category, categoryOptions]);
 
   useEffect(() => {
     if (!open) return;
@@ -330,7 +347,41 @@ export function CardEditorDialog({ open, card, onClose, onSaved, page = false }:
             </label>
             <label className="block">
               <span className="mb-2 block font-mono text-[0.66rem] font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">Category <span className="font-sans font-normal normal-case tracking-normal">optional</span></span>
-              <input value={category} onChange={(event) => setCategory(event.target.value)} maxLength={60} placeholder="e.g. kitchen" className="h-12 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.45)] px-4 text-base text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground)/.65)]" data-testid="input-card-category" />
+              <div className="relative">
+                <input
+                  value={category}
+                  onChange={(event) => setCategory(event.target.value)}
+                  onFocus={() => setCategoryFocused(true)}
+                  onBlur={() => window.setTimeout(() => setCategoryFocused(false), 100)}
+                  maxLength={60}
+                  placeholder="e.g. kitchen"
+                  className="h-12 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.45)] px-4 text-base text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground)/.65)]"
+                  data-testid="input-card-category"
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded={categoryFocused && matchingCategories.length > 0}
+                />
+                {categoryFocused && matchingCategories.length > 0 && (
+                  <div className="absolute inset-x-0 top-full z-20 mt-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-1 shadow-[0_16px_36px_hsl(var(--foreground)/.16)]" role="listbox" data-testid="list-category-suggestions">
+                    {matchingCategories.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        role="option"
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          setCategory(option);
+                          setCategoryFocused(false);
+                        }}
+                        className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]"
+                        data-testid={`option-category-${option.toLocaleLowerCase().replace(/\s+/g, '-')}`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </label>
           </div>
 
