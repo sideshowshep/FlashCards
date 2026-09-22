@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
-import { Check, ChevronDown, CircleAlert, FolderOpen, LoaderCircle, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, CircleAlert, FolderOpen, LoaderCircle, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetCardsSummaryQueryKey,
@@ -221,10 +221,6 @@ export default function Admin() {
           )}
         </section>
 
-        <footer className="flex flex-col gap-2 border-t border-[hsl(var(--border)/.65)] py-5 text-[0.68rem] text-[hsl(var(--muted-foreground))] sm:flex-row sm:items-center sm:justify-between">
-          <span className="flex items-center gap-2"><Check size={14} className="text-[hsl(var(--secondary))]" /> Changes are shared across this shelf.</span>
-          <span className="font-mono uppercase tracking-[0.15em]">picture practice / catalogue</span>
-        </footer>
       </div>
 
       {startOpen && (
