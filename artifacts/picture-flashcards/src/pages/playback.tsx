@@ -27,7 +27,6 @@ function categoryKey(category: string | null | undefined) {
 
 export default function Playback() {
   const [location, navigate] = useLocation();
-  const [category, setCategory] = useState('all');
   const [playing, setPlaying] = useState(false);
   const [playbackOrder, setPlaybackOrder] = useState<Card[]>([]);
   const [playbackIndex, setPlaybackIndex] = useState(0);
@@ -37,10 +36,9 @@ export default function Playback() {
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef(0);
   const cardsQuery = useListCards();
-  const randomParams = category === 'all' ? undefined : { category };
-  const randomQuery = useGetRandomCard(randomParams, {
+  const randomQuery = useGetRandomCard(undefined, {
     query: {
-      queryKey: getGetRandomCardQueryKey(randomParams),
+      queryKey: getGetRandomCardQueryKey(undefined),
       enabled: !cardsQuery.isLoading && (cardsQuery.data?.length ?? 0) > 0,
       refetchOnWindowFocus: false,
     },
@@ -69,28 +67,8 @@ export default function Playback() {
     const value = new URLSearchParams(query).get('textCase');
     return isCardTextCase(value) ? value : 'upper';
   }, [location]);
-  const categories = useMemo(
-    () => {
-      const labels = new Map<string, string>();
-      for (const card of cardsQuery.data ?? []) {
-        if (card.category?.trim()) {
-          const label = card.category.trim();
-          labels.set(categoryKey(label), labels.get(categoryKey(label)) ?? label);
-        }
-      }
-      return Array.from(labels.values()).sort();
-    },
-    [cardsQuery.data],
-  );
   const card = randomQuery.data;
   const playbackCard = playbackOrder[playbackIndex];
-
-  const chooseCategory = (value: string) => {
-    setPlaying(false);
-    setCategory(value);
-    setPlaybackOrder([]);
-    setPlaybackIndex(0);
-  };
 
   const nextCard = () => {
     setPlaying(false);
@@ -113,11 +91,7 @@ export default function Playback() {
   }, [playing, playbackOrder.length]);
 
   const startPlayback = () => {
-    const selectedCategoryKey = categoryKey(category);
-    const cardsInSet = (cardsQuery.data ?? []).filter((item) => (
-      category === 'all' || categoryKey(item.category) === selectedCategoryKey
-    ));
-    startPlaybackWithCards(cardsInSet);
+    startPlaybackWithCards(cardsQuery.data ?? []);
   };
 
   const startPlaybackWithCards = (cardsInSet: Card[]) => {
@@ -253,19 +227,12 @@ export default function Playback() {
 
         <section className="flex flex-1 flex-col justify-center py-10 sm:py-14 lg:py-16">
           <div className="mx-auto w-full max-w-[980px]">
-            <div className="mb-7 flex flex-col gap-5 sm:mb-9 sm:flex-row sm:items-end sm:justify-between">
+            <div className="mb-7 sm:mb-9">
               <div className="animate-lift-in">
                 <p className="mb-3 font-mono text-[0.63rem] font-bold uppercase tracking-[0.2em] text-[hsl(var(--primary))]">Look closely</p>
                 <h1 className="playback-education-font max-w-xl text-4xl font-bold leading-[0.95] tracking-[-0.035em] sm:text-6xl lg:text-7xl">
                   What do you<br className="hidden sm:block" /> see?
                 </h1>
-              </div>
-              <div className="w-full sm:w-52 animate-lift-in delay-1">
-                <label htmlFor="play-category" className="mb-2 block font-mono text-[0.61rem] font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">Practice set</label>
-                <select id="play-category" value={category} onChange={(event) => chooseCategory(event.target.value)} className="h-11 w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.75)] px-3 text-sm font-medium text-[hsl(var(--foreground))]" data-testid="select-playback-category">
-                  <option value="all">Everything</option>
-                  {categories.map((item) => <option value={item} key={item}>{item}</option>)}
-                </select>
               </div>
             </div>
 
@@ -305,7 +272,7 @@ export default function Playback() {
                     <FittedSingleLineTitle text={formatCardText(card.title, selectedTextCase)} level={2} maxFontSize={40} minFontSize={18} className="max-w-full font-serif font-semibold tracking-[-0.045em]" testId={`text-playback-title-${card.id}`} />
                   </div>
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => (playing ? setPlaying(false) : startPlayback())} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[hsl(var(--secondary))] px-4 text-sm font-semibold text-[hsl(var(--secondary-foreground))] transition-transform hover:-translate-y-0.5" data-testid="button-toggle-playback">
+                    <button type="button" onClick={() => (playing ? setPlaying(false) : startPlayback())} className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-700" data-testid="button-toggle-playback">
                       {playing ? <Pause size={16} /> : <Play size={16} />}
                       {playing ? 'Pause' : 'Play'}
                     </button>
