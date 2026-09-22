@@ -92,23 +92,20 @@ export default function Admin() {
           </div>
         </header>
 
-        <section className="flex justify-end pb-8 pt-10 sm:pb-11 sm:pt-12">
+        <section className="flex items-center justify-between gap-4 pb-6 pt-5 sm:pb-8 sm:pt-7">
           <button type="button" onClick={openCreate} className="inline-flex h-12 w-fit items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 font-semibold text-[hsl(var(--primary-foreground))] shadow-[3px_3px_0_hsl(var(--foreground)/.16)] transition-transform hover:-translate-y-0.5 animate-lift-in" data-testid="button-add-card">
             <Plus size={18} /> Add picture
           </button>
+          <label className="flex shrink-0 items-center gap-2">
+            <span className="font-mono text-[0.6rem] font-bold uppercase tracking-[0.14em] text-[hsl(var(--muted-foreground))]">Show</span>
+            <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-10 min-w-32 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.75)] px-3 text-sm font-medium" data-testid="select-admin-category">
+              <option value="all">All pictures</option>
+              {categories.map((item) => <option value={item} key={item}>{item}</option>)}
+            </select>
+          </label>
         </section>
 
-        <section className="pb-12 pt-12 sm:pt-14">
-          <div className="mb-5 flex justify-end">
-            <label className="flex items-center gap-3">
-              <span className="font-mono text-[0.6rem] font-bold uppercase tracking-[0.14em] text-[hsl(var(--muted-foreground))]">Show</span>
-              <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-10 min-w-36 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.75)] px-3 text-sm font-medium" data-testid="select-admin-category">
-                <option value="all">All pictures</option>
-                {categories.map((item) => <option value={item} key={item}>{item}</option>)}
-              </select>
-            </label>
-          </div>
-
+        <section className="pb-12 pt-0">
           {cardsQuery.isError ? (
             <div className="rounded-[22px] border border-[hsl(var(--destructive)/.3)] bg-[hsl(var(--destructive)/.07)] px-6 py-12 text-center" role="alert" data-testid="status-catalogue-error">
               <CircleAlert className="mx-auto mb-3 text-[hsl(var(--destructive))]" size={24} />
