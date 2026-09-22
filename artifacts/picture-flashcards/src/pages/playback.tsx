@@ -31,7 +31,8 @@ export default function Playback() {
   const [playing, setPlaying] = useState(false);
   const [playbackOrder, setPlaybackOrder] = useState<Card[]>([]);
   const [playbackIndex, setPlaybackIndex] = useState(0);
-  const [loadedPlaybackCardId, setLoadedPlaybackCardId] = useState<string | null>(null);
+  const [playbackToken, setPlaybackToken] = useState(0);
+  const [loadedPlaybackToken, setLoadedPlaybackToken] = useState<number | null>(null);
   const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef(0);
@@ -99,6 +100,7 @@ export default function Playback() {
   const movePlayback = (direction: 1 | -1) => {
     if (playbackOrder.length < 1) return;
     setSlideDirection(direction);
+    setPlaybackToken((currentToken) => currentToken + 1);
     setPlaybackIndex((currentIndex) => (
       (currentIndex + direction + playbackOrder.length) % playbackOrder.length
     ));
@@ -124,6 +126,7 @@ export default function Playback() {
     setPlaybackOrder(order);
     setPlaybackIndex(0);
     setSlideDirection(1);
+    setPlaybackToken((currentToken) => currentToken + 1);
     setPlaying(true);
   };
 
@@ -189,7 +192,7 @@ export default function Playback() {
         <div className="relative flex h-full w-full max-w-5xl items-center justify-center overflow-hidden">
           <AnimatePresence initial={false} custom={slideDirection} mode="sync">
             <motion.div
-              key={playbackCard.id}
+              key={`${playbackCard.id}-${playbackToken}`}
               custom={slideDirection}
               variants={{
                 enter: (direction: number) => ({ x: `${direction * 100}%`, opacity: 0 }),
@@ -200,13 +203,13 @@ export default function Playback() {
               animate="center"
               exit="exit"
               transition={{ type: 'spring', stiffness: 360, damping: 34, mass: 0.8 }}
-              className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-150 ${loadedPlaybackCardId === playbackCard.id ? 'opacity-100' : 'opacity-0'}`}
+              className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-150 ${loadedPlaybackToken === playbackToken ? 'opacity-100' : 'opacity-0'}`}
             >
               <img
                 src={playbackCard.imageUrl}
                 alt=""
-                onLoad={() => setLoadedPlaybackCardId(playbackCard.id)}
-                onError={() => setLoadedPlaybackCardId(playbackCard.id)}
+                onLoad={() => setLoadedPlaybackToken(playbackToken)}
+                onError={() => setLoadedPlaybackToken(playbackToken)}
                 className="max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] shrink-0 rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)]"
               />
               <FittedSingleLineTitle
