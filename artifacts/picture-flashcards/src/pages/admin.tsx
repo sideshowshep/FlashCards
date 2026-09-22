@@ -159,22 +159,16 @@ export default function Admin() {
                     <h3 id={`category-${group.replace(/\s+/g, '-').toLowerCase()}`} className="font-serif text-2xl font-semibold tracking-[-0.04em]">{group}</h3>
                     <span className="rounded-full bg-[hsl(var(--muted))] px-2.5 py-1 font-mono text-[0.58rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--muted-foreground))]">{groupCards.length}</span>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="overflow-hidden rounded-[20px] border border-[hsl(var(--border))] bg-[hsl(var(--card)/.7)]">
                     {groupCards.map((card) => (
-                      <article key={card.id} className="group overflow-hidden rounded-[20px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-[0_8px_22px_hsl(var(--foreground)/.045)] transition-transform duration-300 hover:-translate-y-1" data-testid={`card-catalogue-${card.id}`}>
-                        <div className="relative aspect-[4/5] overflow-hidden bg-[hsl(var(--muted))]">
-                          <img src={card.imageUrl} alt={card.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" data-testid={`img-catalogue-${card.id}`} />
-                          {card.category && <span className="absolute left-3 top-3 rounded-full bg-[hsl(var(--card)/.9)] px-2.5 py-1 font-mono text-[0.57rem] font-bold uppercase tracking-[0.13em] text-[hsl(var(--primary))]">{card.category}</span>}
+                      <article key={card.id} className="group flex items-center gap-3 border-b border-[hsl(var(--border)/.7)] p-3 last:border-b-0 sm:gap-4 sm:p-4" data-testid={`card-catalogue-${card.id}`}>
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[hsl(var(--muted))] sm:h-20 sm:w-20">
+                          <img src={card.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" data-testid={`img-catalogue-${card.id}`} />
                         </div>
-                        <div className="flex items-center justify-between gap-3 p-4">
-                          <div className="min-w-0">
-                            <h3 className="truncate font-serif text-xl font-semibold tracking-[-0.035em]" data-testid={`text-card-title-${card.id}`}>{card.title}</h3>
-                            <p className="mt-1 font-mono text-[0.58rem] uppercase tracking-[0.12em] text-[hsl(var(--muted-foreground))]">{card.category ?? 'Uncategorized'}</p>
-                          </div>
-                          <div className="flex shrink-0 gap-1">
-                            <button type="button" onClick={() => openEdit(card)} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label={`Edit ${card.title}`} data-testid={`button-edit-card-${card.id}`}><Pencil size={15} /></button>
-                            <button type="button" onClick={() => { setDeleteTarget(card); setDeleteError(''); }} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--destructive)/.1)] hover:text-[hsl(var(--destructive))]" aria-label={`Delete ${card.title}`} data-testid={`button-delete-card-${card.id}`}><Trash2 size={15} /></button>
-                          </div>
+                        <h3 className="min-w-0 flex-1 truncate font-serif text-xl font-semibold tracking-[-0.035em]" data-testid={`text-card-title-${card.id}`}>{card.title}</h3>
+                        <div className="flex shrink-0 gap-1">
+                          <button type="button" onClick={() => openEdit(card)} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label={`Edit ${card.title}`} data-testid={`button-edit-card-${card.id}`}><Pencil size={15} /></button>
+                          <button type="button" onClick={() => { setDeleteTarget(card); setDeleteError(''); }} className="grid h-9 w-9 place-items-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--destructive)/.1)] hover:text-[hsl(var(--destructive))]" aria-label={`Delete ${card.title}`} data-testid={`button-delete-card-${card.id}`}><Trash2 size={15} /></button>
                         </div>
                       </article>
                     ))}
