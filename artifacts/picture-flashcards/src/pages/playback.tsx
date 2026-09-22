@@ -215,7 +215,7 @@ export default function Playback() {
           }
         }}
       >
-        <div className="relative flex h-full w-full max-w-5xl items-center justify-center overflow-hidden">
+        <div className="relative flex min-h-0 w-full max-w-5xl flex-1 items-center justify-center overflow-hidden">
           <AnimatePresence initial={false} custom={slideDirection} mode="sync">
             <motion.div
               key={`${playbackCard.id}-${playbackToken}`}
