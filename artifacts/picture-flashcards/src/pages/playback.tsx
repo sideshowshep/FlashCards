@@ -42,7 +42,9 @@ export default function Playback() {
     },
   });
   const selectedCategoryKeys = useMemo(() => {
-    const query = location.includes('?') ? location.slice(location.indexOf('?') + 1) : '';
+    const query = typeof window !== 'undefined'
+      ? window.location.search
+      : (location.includes('?') ? location.slice(location.indexOf('?') + 1) : '');
     const rawCategories = new URLSearchParams(query).get('categories') ?? '';
     return rawCategories
       .split(',')
