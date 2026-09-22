@@ -276,7 +276,7 @@ export default function Admin() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-[hsl(var(--foreground)/.38)] p-5 backdrop-blur-[3px]" role="presentation">
           <div className="animate-lift-in w-full max-w-md rounded-[24px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 shadow-[0_24px_80px_hsl(var(--foreground)/.22)] sm:p-8" role="dialog" aria-modal="true" aria-labelledby="delete-title" data-testid="dialog-delete-card">
             <p className="font-mono text-[0.61rem] font-bold uppercase tracking-[0.18em] text-[hsl(var(--destructive))]">Remove picture</p>
-            <h2 id="delete-title" className="mt-2 font-serif text-3xl font-semibold leading-tight tracking-[-0.045em]">Take “{deleteTarget.title}” off the shelf?</h2>
+            <h2 id="delete-title" className="mt-2 font-serif text-3xl font-semibold leading-tight tracking-[-0.045em]">Delete {deleteTarget.title}</h2>
             <p className="mt-3 text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">This cannot be undone. The picture will disappear from practice for everyone using this catalogue.</p>
             {deleteError && <p className="mt-4 text-sm text-[hsl(var(--destructive))]" role="alert" data-testid="status-delete-error">{deleteError}</p>}
             <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
