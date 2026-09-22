@@ -74,6 +74,52 @@ stop_services() {
   stop_pid_file "$API_PID_FILE"
 }
 
+listener_pids() {
+  local port="$1"
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true
+    return
+  fi
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltnp 2>/dev/null \
+      | awk -v wanted=":$port" '
+          $4 ~ wanted "$" {
+            while (match($0, /pid=[0-9]+/)) {
+              print substr($0, RSTART + 4, RLENGTH - 4)
+              $0 = substr($0, RSTART + RLENGTH)
+            }
+          }
+        ' \
+      | sort -u
+  fi
+}
+
+stop_listener_on_port() {
+  local port="$1"
+  local pids
+  pids="$(listener_pids "$port")"
+  [[ -n "$pids" ]] || return 0
+
+  echo "Stopping existing service on port $port..."
+  while read -r pid; do
+    [[ "$pid" =~ ^[0-9]+$ ]] || continue
+    [[ "$pid" == "$$" ]] && continue
+    kill "$pid" 2>/dev/null || true
+  done <<< "$pids"
+
+  for _ in 1 2 3 4 5; do
+    pids="$(listener_pids "$port")"
+    [[ -z "$pids" ]] && return 0
+    sleep 1
+  done
+
+  while read -r pid; do
+    [[ "$pid" =~ ^[0-9]+$ ]] || continue
+    [[ "$pid" == "$$" ]] && continue
+    kill -KILL "$pid" 2>/dev/null || true
+  done <<< "$pids"
+}
+
 ensure_runtime() {
   command -v node >/dev/null 2>&1 || fail "Node.js is required. Install Node.js 20 or newer, then run this script again."
 
@@ -148,6 +194,11 @@ install_dependencies_and_build() {
 start_services() {
   mkdir -p "$LOG_DIR" "$DATA_DIR"
   stop_services
+  # PID files can be missing or stale if a previous update was interrupted.
+  # The configured ports belong to this installation, so clear any remaining
+  # listeners before starting the rebuilt services.
+  stop_listener_on_port "$APP_PORT"
+  stop_listener_on_port "$API_PORT"
 
   echo "Starting the local API on 127.0.0.1:$API_PORT..."
   nohup env \
