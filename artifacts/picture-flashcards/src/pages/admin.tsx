@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useLocation } from 'wouter';
+import { useLocation } from 'wouter';
 import { Check, ChevronDown, CircleAlert, FolderOpen, LoaderCircle, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -12,7 +12,6 @@ import {
 } from '@workspace/api-client-react';
 import type { Card } from '@workspace/api-client-react';
 import { BrandMark } from '@/components/brand-mark';
-import { CardEditorDialog } from '@/components/card-editor-dialog';
 import type { CardTextCase } from '@/lib/card-text';
 
 function categoryKey(category: string | null | undefined) {
@@ -24,8 +23,6 @@ const UNCATEGORISED_LABEL = 'Uncategorised';
 
 export default function Admin() {
   const queryClient = useQueryClient();
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Card | null>(null);
   const [startOpen, setStartOpen] = useState(false);
   const [selectedStartCategories, setSelectedStartCategories] = useState<string[]>([]);
@@ -116,13 +113,7 @@ export default function Admin() {
   };
 
   const openEdit = (card: Card) => {
-    setEditingCard(card);
-    setEditorOpen(true);
-  };
-
-  const closeEditor = () => {
-    setEditorOpen(false);
-    setEditingCard(null);
+    navigate(`/edit/${encodeURIComponent(card.id)}`);
   };
 
   const confirmDelete = () => {
@@ -270,8 +261,6 @@ export default function Admin() {
           </div>
         </div>
       )}
-
-      <CardEditorDialog open={editorOpen} card={editingCard} onClose={closeEditor} onSaved={closeEditor} />
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-[hsl(var(--foreground)/.38)] p-5 backdrop-blur-[3px]" role="presentation">

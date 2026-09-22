@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import Admin from '@/pages/admin';
 import AddCard from '@/pages/add-card';
+import EditCard from '@/pages/edit-card';
 import Playback from '@/pages/playback';
 import {
   Route,
@@ -24,6 +25,7 @@ function Router() {
       <Switch>
          <Route path="/" component={Admin} />
          <Route path="/add" component={AddCard} />
+         <Route path="/edit/:id" component={EditCard} />
          <Route path="/practice" component={Playback} />
          <Route path="/admin" component={Admin} />
         <Route component={NotFound} />
