@@ -44,8 +44,52 @@ export default function Playback() {
     void randomQuery.refetch();
   };
 
+  const startPlayback = () => {
+    setPlaying(true);
+    void randomQuery.refetch();
+  };
+
   const isLoading = cardsQuery.isLoading || randomQuery.isLoading;
   const hasCards = (cardsQuery.data?.length ?? 0) > 0;
+
+  if (playing && card) {
+    return (
+      <main
+        className="playback-focus playback-education-font fixed inset-0 z-50 flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-[hsl(var(--background))] px-5 py-6 text-[hsl(var(--foreground))]"
+        aria-label="Picture playback"
+        tabIndex={0}
+        onClick={() => void randomQuery.refetch()}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' || event.key === ' ') {
+            event.preventDefault();
+            setPlaying(false);
+          } else if (event.key === 'ArrowRight' || event.key === 'Enter') {
+            event.preventDefault();
+            void randomQuery.refetch();
+          }
+        }}
+      >
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            setPlaying(false);
+          }}
+          className="absolute right-0 top-0 h-20 w-20 opacity-0"
+          aria-label="Stop playback"
+          title="Stop playback"
+        />
+        <img
+          src={card.imageUrl}
+          alt=""
+          className="max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)]"
+        />
+        <h1 className="mt-5 text-center text-4xl font-bold leading-tight tracking-[-0.025em] sm:text-6xl">
+          {card.title}
+        </h1>
+      </main>
+    );
+  }
 
   return (
     <main className="paper-grain min-h-[100dvh] overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
@@ -65,7 +109,7 @@ export default function Playback() {
             <div className="mb-7 flex flex-col gap-5 sm:mb-9 sm:flex-row sm:items-end sm:justify-between">
               <div className="animate-lift-in">
                 <p className="mb-3 font-mono text-[0.63rem] font-bold uppercase tracking-[0.2em] text-[hsl(var(--primary))]">Look closely</p>
-                <h1 className="max-w-xl font-serif text-4xl font-semibold leading-[0.95] tracking-[-0.055em] sm:text-6xl lg:text-7xl">
+                <h1 className="playback-education-font max-w-xl text-4xl font-bold leading-[0.95] tracking-[-0.035em] sm:text-6xl lg:text-7xl">
                   What do you<br className="hidden sm:block" /> see?
                 </h1>
               </div>
@@ -114,7 +158,7 @@ export default function Playback() {
                     <h2 className="font-serif text-3xl font-semibold tracking-[-0.045em] sm:text-4xl" data-testid={`text-playback-title-${card.id}`}>{card.title}</h2>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setPlaying((value) => !value)} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[hsl(var(--secondary))] px-4 text-sm font-semibold text-[hsl(var(--secondary-foreground))] transition-transform hover:-translate-y-0.5" data-testid="button-toggle-playback">
+                    <button type="button" onClick={() => (playing ? setPlaying(false) : startPlayback())} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[hsl(var(--secondary))] px-4 text-sm font-semibold text-[hsl(var(--secondary-foreground))] transition-transform hover:-translate-y-0.5" data-testid="button-toggle-playback">
                       {playing ? <Pause size={16} /> : <Play size={16} />}
                       {playing ? 'Pause' : 'Play'}
                     </button>
