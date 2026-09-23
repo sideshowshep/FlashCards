@@ -245,14 +245,14 @@ export default function Admin() {
                                 <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[hsl(var(--muted))] sm:h-20 sm:w-20">
                                   <img src={card.imageUrl} alt="" className={`h-full w-full object-cover transition-[filter,opacity,transform] duration-300 group-hover:scale-[1.04] ${card.isVisible ? '' : 'saturate-0 opacity-55'}`} data-testid={`img-catalogue-${card.id}`} />
                                 </div>
-                                <h3 className="min-w-0 flex-1 truncate font-serif text-xl font-semibold tracking-[-0.035em]" data-testid={`text-card-title-${card.id}`}>{card.title}</h3>
+                                <h3 className={`min-w-0 flex-1 truncate font-serif text-xl font-semibold tracking-[-0.035em] ${card.isVisible ? 'text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))]'}`} data-testid={`text-card-title-${card.id}`}>{card.title}</h3>
                                 <button
                                   type="button"
                                   onClick={(event) => toggleCardVisibility(event, card)}
                                   disabled={updateCard.isPending}
                                   aria-label={`${card.isVisible ? 'Hide' : 'Show'} ${card.title} in practice`}
                                   aria-pressed={card.isVisible}
-                                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg transition-colors disabled:cursor-wait disabled:opacity-50 ${card.isVisible ? 'text-[hsl(var(--primary))] hover:bg-[hsl(var(--accent)/.18)]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]'}`}
+                                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg transition-colors disabled:cursor-wait disabled:opacity-50 ${card.isVisible ? 'text-emerald-600 hover:bg-emerald-500/10' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]'}`}
                                   data-testid={`button-toggle-visibility-${card.id}`}
                                   title={card.isVisible ? 'Hide from practice' : 'Show in practice'}
                                 >
