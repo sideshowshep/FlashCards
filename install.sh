@@ -463,6 +463,36 @@ stop_process_group() {
   fi
 }
 
+managed_app_pid() {
+  [[ -f "$APP_PID_FILE" ]] || return 1
+  cat "$APP_PID_FILE"
+}
+
+pid_is_managed_app() {
+  local pid="$1"
+  local cwd
+  local command
+  pid_is_running "$pid" || return 1
+  cwd="$(readlink "/proc/$pid/cwd" 2>/dev/null || true)"
+  [[ "$cwd" == "$APP_ROOT" ]] || return 1
+  command="$(pid_command "$pid")"
+  [[ "$command" == *"@workspace/api-server"* ]] \
+    || [[ "$command" == *"$APP_ROOT/artifacts/api-server/dist/index.mjs"* ]]
+}
+
+stop_orphaned_app() {
+  local pid
+  pid="$(managed_app_pid 2>/dev/null || true)"
+  [[ -n "$pid" ]] || return 0
+  if pid_is_running "$pid"; then
+    pid_is_managed_app "$pid" \
+      || fail "Refusing to stop PID $pid because it is not this application's API process."
+    echo "Stopping this application's orphaned API process (PID $pid)."
+    stop_process_group "$pid"
+  fi
+  rm -f "$APP_PID_FILE"
+}
+
 stop_owned_supervisor() {
   local pid
   pid="$(supervisor_pid 2>/dev/null || true)"
@@ -623,7 +653,9 @@ show_status() {
   else
     echo "Application process: stopped"
   fi
-  if systemd_service_enabled; then
+  if systemd_service_active; then
+    echo "Systemd service: active ($SERVICE_NAME)"
+  elif systemd_service_enabled; then
     if systemd_service_active; then
       echo "Systemd service: enabled and active ($SERVICE_NAME)"
     else
@@ -672,7 +704,7 @@ main() {
     install)
       ensure_runtime
       [[ "$SYSTEMD_ACTION" != "install" ]] || require_systemd
-      if systemd_service_enabled; then
+      if systemd_service_active || systemd_service_enabled; then
         SYSTEMD_WAS_MANAGED=true
         if systemd_service_active; then
           if [[ "$RESTART_OWNED" == true ]]; then
@@ -688,6 +720,8 @@ main() {
         else
           fail "This application is already running. Use --restart-owned only when restarting this application's own supervisor."
         fi
+      elif [[ "$RESTART_OWNED" == true ]]; then
+        stop_orphaned_app
       fi
       check_port
       write_config
