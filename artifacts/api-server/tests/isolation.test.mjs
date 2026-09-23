@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -12,6 +12,13 @@ const entryPoint = path.join(packageRoot, "dist/index.mjs");
 const testDataRoot = await mkdtemp(
   path.join(tmpdir(), "picture-flashcards-isolation-"),
 );
+const staticRoot = path.join(testDataRoot, "static");
+await mkdir(staticRoot, { recursive: true });
+await writeFile(
+  path.join(staticRoot, "index.html"),
+  "<!doctype html><html><body><div id=\"root\">flashcards-ui</div></body></html>",
+);
+await writeFile(path.join(staticRoot, "asset.txt"), "static-asset");
 
 async function getFreePort() {
   const server = net.createServer();
@@ -28,7 +35,7 @@ async function getFreePort() {
   return port;
 }
 
-function startApi(port, dataDirectory) {
+function startApi(port, dataDirectory, staticDirectory = staticRoot) {
   const child = spawn(process.execPath, [entryPoint], {
     cwd: packageRoot,
     env: {
@@ -39,6 +46,7 @@ function startApi(port, dataDirectory) {
       HOST: "127.0.0.1",
       PORT: String(port),
       FLASHCARDS_DATA_DIR: dataDirectory,
+      FLASHCARDS_STATIC_DIR: staticDirectory,
       SESSION_SECRET: "must-not-appear-in-logs",
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -98,6 +106,23 @@ test("rejects occupied ports without affecting the existing listener and shuts d
   try {
     const response = await waitForHealth(first, port);
     assert.deepEqual(await response.json(), { status: "ok" });
+
+    const home = await fetch(`http://127.0.0.1:${port}/`);
+    assert.equal(home.status, 200);
+    assert.match(await home.text(), /flashcards-ui/);
+
+    const clientRoute = await fetch(`http://127.0.0.1:${port}/admin`);
+    assert.equal(clientRoute.status, 200);
+    assert.match(await clientRoute.text(), /flashcards-ui/);
+
+    const asset = await fetch(`http://127.0.0.1:${port}/asset.txt`);
+    assert.equal(asset.status, 200);
+    assert.equal(await asset.text(), "static-asset");
+
+    const missingApiRoute = await fetch(
+      `http://127.0.0.1:${port}/api/does-not-exist`,
+    );
+    assert.equal(missingApiRoute.status, 404);
 
     second = startApi(port, path.join(testDataRoot, "second"));
     const secondExitCode = await waitForExit(second);

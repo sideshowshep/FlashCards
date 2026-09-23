@@ -11,10 +11,9 @@ A local-first educational PWA for building a shared picture flashcard catalogue 
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `FLASHCARDS_DATA_DIR` — optional path for the server's `cards.json` and `images/` folder; defaults to `./data`
-- `PORT` or `WEB_PORT` — frontend/web listener port
-- `API_PORT` — API listener port when the frontend proxy is enabled
-- `WEB_HOST` — frontend bind host; Replit defaults to `0.0.0.0`
-- `API_HOST` or `HOST` — API bind host; local deployments default to `127.0.0.1`, while Replit defaults to `0.0.0.0`
+- `PORT` or `APP_PORT` — production listener port; the Express server serves both UI and API
+- `WEB_PORT` and `WEB_HOST` — Vite development/preview listener settings
+- `HOST` — Express bind host; local deployments default to `127.0.0.1`, while Replit defaults to `0.0.0.0`
 
 ## Stack
 
@@ -52,21 +51,19 @@ A local-first educational PWA for building a shared picture flashcard catalogue 
 
 ## Gotchas
 
-- The frontend expects the API to be available under the same origin at `/api`; a Pi deployment should put the static frontend and API behind one local reverse proxy or equivalent.
+- The frontend expects the API to be available under the same origin at `/api`; the Pi production server serves both the static frontend and API from one listener.
 - Do not move card image bytes into PostgreSQL; the JSON/file store is deliberate for simple Raspberry Pi operation.
 
 ## Raspberry Pi operation
 
-The supported local deployment keeps one externally reachable web listener and a
-separate API listener bound to loopback. The API listener is retained because
-the frontend preview server and API server are separate workspace services; it
-is not LAN-exposed when `API_HOST=127.0.0.1`.
+The supported local deployment uses one listener for the built frontend and the
+Express API. Vite is used only for development and Replit workflows.
 
 Use the launcher as the sole process supervisor:
 
-- `./install.sh --web-port 5016 --api-port 5017` — build and run this instance
+- `./install.sh --port 5016` — build and run this instance
 - `./install.sh --print-effective-config` — print hosts, ports, paths, health checks, and startup mode
-- `./install.sh --check` — fail safely if either configured port is occupied
+- `./install.sh --check` — fail safely if the configured port is occupied
 - `./install.sh --status` — show the owned supervisor, child PIDs, and listeners
 - `./install.sh --logs` — show recent application logs
 - `./install.sh --stop` — stop only this application's managed process group
@@ -75,7 +72,7 @@ Use the launcher as the sole process supervisor:
 The launcher does not install systemd, cron, or another boot mechanism. Automatic
 startup is disabled unless an operator explicitly adds an external service
 manager. It never kills an arbitrary process because a port is occupied; choose
-another `--web-port` or `--api-port` instead.
+another `--port` instead.
 
 ## Pointers
 

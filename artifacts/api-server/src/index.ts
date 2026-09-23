@@ -30,6 +30,9 @@ const dataDirectory = path.resolve(
   process.env["FLASHCARDS_DATA_DIR"] ?? path.join(process.cwd(), "data"),
 );
 const automaticStartup = process.env["AUTOMATIC_STARTUP"] ?? "unknown";
+const staticDirectory = process.env["FLASHCARDS_STATIC_DIR"]
+  ? path.resolve(process.env["FLASHCARDS_STATIC_DIR"])
+  : "disabled";
 
 const server = app.listen(port, host);
 let shuttingDown = false;
@@ -48,6 +51,7 @@ server.on("listening", () => {
       port,
       primaryListener: `${host}:${port}`,
       additionalListeners: "none",
+      staticDirectory,
       dataDirectory,
       automaticStartup,
     },
