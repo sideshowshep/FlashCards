@@ -10,11 +10,15 @@ SUPERVISOR_PID_FILE="$RUNTIME_DIR/supervisor.pid"
 APP_PID_FILE="$RUNTIME_DIR/app.pid"
 DATA_DIR="$APP_ROOT/.picture-flashcards-data"
 STATIC_DIR="$APP_ROOT/artifacts/picture-flashcards/dist/public"
+SERVICE_NAME="picture-flashcards.service"
+SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME"
 DEFAULT_PORT=5016
 DEFAULT_HOST=0.0.0.0
 USE_SAVED_CONFIG=false
 RESTART_OWNED=false
 COMMAND="install"
+SYSTEMD_ACTION=""
+SYSTEMD_WAS_MANAGED=false
 SHUTDOWN_STARTED=false
 
 ENV_PORT="${PORT:-${APP_PORT:-${WEB_PORT:-}}}"
@@ -35,8 +39,10 @@ usage() {
 Usage:
   ./install.sh [options]
 
-Install and run Picture Flashcards under a foreground supervisor. The Express
-server serves both the frontend and /api from one listener.
+Install and run Picture Flashcards. By default this uses a foreground
+supervisor; --install-service uses systemd so the app starts after reboot and
+restarts after failures. The Express server serves both the frontend and /api
+from one listener.
 
 Options:
   --port PORT, --app-port PORT, --web-port PORT
@@ -44,6 +50,9 @@ Options:
   --instance NAME
   --use-saved-config       Reuse the saved configuration.
   --restart-owned          Stop this app's own supervisor before rebuilding.
+  --install-service        Install, enable, and start the systemd service.
+  --uninstall-service      Disable and remove the systemd service.
+  --service                Internal systemd foreground service mode.
   --print-effective-config Print configuration and exit.
   --check                  Validate configuration and port ownership, then exit.
   --status                 Show this app's process and listener status.
@@ -139,6 +148,18 @@ parse_args() {
         RESTART_OWNED=true
         shift
         ;;
+      --install-service|--enable-service)
+        SYSTEMD_ACTION="install"
+        shift
+        ;;
+      --uninstall-service|--remove-service)
+        COMMAND="service-remove"
+        shift
+        ;;
+      --service)
+        COMMAND="service"
+        shift
+        ;;
       --print-effective-config)
         COMMAND="print"
         shift
@@ -173,6 +194,10 @@ parse_args() {
 
 choose_config() {
   read_saved_config
+
+  if [[ "$COMMAND" == "service" && ! -f "$CONFIG_FILE" ]]; then
+    fail "Cannot run the systemd service: no saved configuration exists. Run ./install.sh --port PORT --install-service first."
+  fi
 
   if [[ "$USE_SAVED_CONFIG" == true && ! -f "$CONFIG_FILE" ]]; then
     fail "No saved configuration exists. Run ./install.sh first."
@@ -212,6 +237,43 @@ ensure_runtime() {
   fi
 
   command -v setsid >/dev/null 2>&1 || fail "setsid is required to manage application process groups."
+}
+
+systemd_run() {
+  if (( EUID == 0 )); then
+    systemctl "$@"
+    return
+  fi
+  command -v sudo >/dev/null 2>&1 || fail "sudo is required to manage $SERVICE_NAME."
+  sudo systemctl "$@"
+}
+
+privileged_run() {
+  if (( EUID == 0 )); then
+    "$@"
+    return
+  fi
+  command -v sudo >/dev/null 2>&1 || fail "sudo is required to manage $SERVICE_NAME."
+  sudo "$@"
+}
+
+systemd_available() {
+  command -v systemctl >/dev/null 2>&1
+}
+
+systemd_service_enabled() {
+  systemd_available && systemctl is-enabled --quiet "$SERVICE_NAME" 2>/dev/null
+}
+
+systemd_service_active() {
+  systemd_available && systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null
+}
+
+require_systemd() {
+  systemd_available || fail "systemctl is required for --install-service."
+  if (( EUID != 0 )); then
+    command -v sudo >/dev/null 2>&1 || fail "sudo is required to manage $SERVICE_NAME."
+  fi
 }
 
 port_owner() {
@@ -257,6 +319,74 @@ INSTANCE_NAME=$INSTANCE_NAME
 EOF
 }
 
+write_systemd_unit() {
+  require_systemd
+
+  local service_user="${SUDO_USER:-$(id -un)}"
+  [[ "$service_user" =~ ^[A-Za-z0-9._-]+$ ]] \
+    || fail "Cannot create $SERVICE_NAME: invalid service user."
+  id "$service_user" >/dev/null 2>&1 \
+    || fail "Cannot create $SERVICE_NAME: service user does not exist: $service_user"
+  [[ "$APP_ROOT" != *[[:space:]]* ]] \
+    || fail "Cannot create $SERVICE_NAME: the application path contains whitespace."
+
+  mkdir -p "$RUNTIME_DIR"
+  local unit_source="$RUNTIME_DIR/$SERVICE_NAME"
+  cat > "$unit_source" <<EOF
+[Unit]
+Description=Picture Flashcards
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=$service_user
+WorkingDirectory=$APP_ROOT
+EnvironmentFile=-$CONFIG_FILE
+Environment=NODE_ENV=production
+Environment=APPLICATION_NAME=$APPLICATION_NAME
+Environment=AUTOMATIC_STARTUP=systemd
+Environment=FLASHCARDS_DATA_DIR=$DATA_DIR
+Environment=FLASHCARDS_STATIC_DIR=$STATIC_DIR
+ExecStart=/bin/bash $APP_ROOT/install.sh --service
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  privileged_run install -o "$service_user" -g "$service_user" -m 0644 \
+    "$unit_source" "$SERVICE_FILE"
+  rm -f "$unit_source"
+}
+
+install_systemd_service() {
+  write_systemd_unit
+  systemd_run daemon-reload
+  systemd_run enable --now "$SERVICE_NAME"
+  echo "Enabled $SERVICE_NAME; it will start after reboot and restart after failures."
+}
+
+remove_systemd_service() {
+  require_systemd
+  if systemd_service_active; then
+    systemd_run stop "$SERVICE_NAME"
+  fi
+  if systemd_service_enabled; then
+    systemd_run disable "$SERVICE_NAME"
+  fi
+  if [[ -e "$SERVICE_FILE" ]]; then
+    privileged_run rm -f "$SERVICE_FILE"
+    systemd_run daemon-reload
+    echo "Removed $SERVICE_NAME."
+  else
+    echo "$SERVICE_NAME was not installed."
+  fi
+}
+
 print_effective_config() {
   echo "Application: $APPLICATION_NAME"
   echo "Instance: $INSTANCE_NAME"
@@ -271,7 +401,11 @@ print_effective_config() {
   echo "Config file: $CONFIG_FILE"
   echo "Log directory: $LOG_DIR"
   echo "Runtime directory: $RUNTIME_DIR"
-  echo "Automatic startup: disabled (no systemd, cron, or boot entry is installed)"
+  if systemd_service_enabled; then
+    echo "Automatic startup: enabled ($SERVICE_NAME)"
+  else
+    echo "Automatic startup: disabled (run with --install-service to enable systemd)"
+  fi
   echo "Health endpoint: http://$HOST:$PORT/api/healthz"
   echo "Status: ./install.sh --status"
   echo "Logs: ./install.sh --logs"
