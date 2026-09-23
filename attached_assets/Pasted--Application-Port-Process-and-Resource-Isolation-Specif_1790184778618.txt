@@ -1,0 +1,971 @@
+# Application Port, Process, and Resource Isolation Specification
+
+## 1. Objective
+
+This application may run alongside other independent applications on the same machine, including Raspberry Pi systems and Replit development environments.
+
+The application must:
+
+1. Use one externally reachable port whenever reasonably possible.
+2. Use additional ports only when technically necessary.
+3. Allow every port to be explicitly configured.
+4. Clearly report every port and listener it uses.
+5. Never silently take over another application’s port.
+6. Never kill or restart processes belonging to another application.
+7. Keep its files, processes, logs, database, configuration, dependencies, and resource usage isolated.
+8. Start and stop cleanly.
+9. Avoid hidden background processes and undocumented startup mechanisms.
+10. Fail clearly and safely when it cannot meet these requirements.
+
+The agent must treat other applications on the same host as unrelated and must not modify or interfere with them.
+
+---
+
+## 2. Port policy
+
+### 2.1 Prefer one externally exposed port
+
+The default architecture must use one externally exposed TCP port per application.
+
+For a web application with a frontend and API:
+
+- Prefer serving the built frontend and API from the same server and same port.
+- Put API endpoints under a namespace such as `/api/...`.
+- Serve health checks from the same listener, for example `/healthz`.
+- Use the same origin for browser requests.
+- Do not require a separate frontend port and API port in production unless there is a documented technical reason.
+
+For development:
+
+- A separate frontend development server is acceptable only if the framework requires it.
+- Development-only extra ports must still be configurable and must be printed at startup.
+- Production and installed deployments should not retain unnecessary development servers, HMR servers, preview servers, or file watchers.
+
+### 2.2 Additional ports require justification
+
+Every additional listener must have a documented reason.
+
+Examples of potentially valid additional listeners:
+
+- A development-only frontend server.
+- A separately deployed API service.
+- A required WebSocket or media service that cannot share the main listener.
+- A metrics endpoint explicitly enabled by the operator.
+- A local-only administration endpoint.
+
+Examples of invalid reasons:
+
+- “The framework chose another port.”
+- “It was easier to start two servers.”
+- “The port was available.”
+- “The server silently moved to the next port.”
+- “The installer needed a temporary server.”
+
+If an additional port is not essential, remove it.
+
+### 2.3 Port configuration
+
+Every listening port must be configurable using both environment variables and command-line options where the application has an installer or launcher.
+
+At minimum, support the following pattern:
+
+```text
+HOST=0.0.0.0
+PORT=5000
+```
+
+If multiple listeners are genuinely required, use explicit names:
+
+```text
+WEB_PORT=5000
+API_PORT=5001
+METRICS_PORT=
+HMR_PORT=
+ADMIN_PORT=
+```
+
+The exact variable names may differ by application, but they must be:
+
+- Documented.
+- Consistent.
+- Used by all relevant processes.
+- Printed in the effective configuration at startup.
+- Accepted by the installer or launcher.
+
+Recommended precedence:
+
+1. Explicit command-line argument.
+2. Environment variable.
+3. Project configuration file.
+4. Documented default.
+
+The application must print the selected source for each port, for example:
+
+```text
+WEB_PORT=5000          source: command line
+API_PORT=5001          source: environment
+METRICS_PORT=disabled  source: default
+```
+
+Do not silently choose another port when the requested port is unavailable.
+
+### 2.4 Port collision behavior
+
+When a requested port is occupied:
+
+- Do not kill the existing process.
+- Do not silently select a different port.
+- Do not overwrite the existing service.
+- Do not assume the process is stale.
+- Do not run `kill`, `pkill`, `fuser -k`, or equivalent commands automatically.
+
+Instead, fail with a useful message containing:
+
+- The application name.
+- The requested port.
+- The likely conflicting process ID, if it can be determined.
+- The command the operator can use to inspect it.
+- The configuration option for selecting another port.
+
+Example:
+
+```text
+Cannot start Solar Battery Optimiser on port 5007.
+The port is already occupied.
+
+Inspect the owner with:
+  sudo ss -ltnp | grep ':5007'
+
+Choose another port with:
+  PORT=5008 ./start.sh
+```
+
+A port pre-check may be used for diagnostics, but the actual bind attempt remains authoritative because another process can claim the port between the check and startup.
+
+### 2.5 Dynamic ports
+
+Random or automatically selected ports are not allowed by default.
+
+Dynamic port selection may only be used when:
+
+- The operator explicitly enables it.
+- The actual selected port is printed.
+- The selected port is available to dependent processes.
+- The selected port is included in the startup summary.
+- The application does not claim to use a fixed port.
+
+If a test process uses an ephemeral port, it must cleanly release it before the application starts.
+
+### 2.6 Port ownership and process naming
+
+Each listener must be identifiable by:
+
+- Application name.
+- Instance or tenant name, if applicable.
+- Environment.
+- Configured port.
+
+Service names must not be generic names such as:
+
+```text
+api.service
+server.service
+frontend.service
+app.service
+```
+
+Prefer names such as:
+
+```text
+solar-battery-optimiser-5007.service
+flashcards-5017.service
+my-app-production.service
+```
+
+If the application supports multiple instances, each instance must have separate service names, configuration, data, logs, and runtime files.
+
+---
+
+## 3. Replit-specific requirements
+
+### 3.1 Honor the workflow-provided port
+
+When running in Replit:
+
+- Honor the `PORT` value supplied by the workflow or environment.
+- Do not replace it with a hardcoded port.
+- Do not start a second server on another public port unless required.
+- Ensure the server binds to an interface accessible through the Replit preview, normally `0.0.0.0`.
+- Configure the development server to allow Replit’s proxied host where required.
+
+The application must work when started with:
+
+```bash
+PORT="$PORT" pnpm run dev
+```
+
+or the equivalent project command.
+
+### 3.2 Do not hardcode local URLs in browser code
+
+Frontend code must not hardcode:
+
+```text
+http://localhost:3000
+http://localhost:5000
+http://127.0.0.1:...
+```
+
+Use same-origin requests or the project’s configured base path.
+
+This prevents the browser from accidentally connecting to another application or to a port that differs between Replit, local development, and Raspberry Pi deployment.
+
+### 3.3 Workflow ownership
+
+The project must clearly document which workflow starts which process.
+
+A workflow must not silently start unrelated applications.
+
+If the project contains multiple artifacts or services:
+
+- Each service must have a unique workflow name.
+- Each workflow must declare its intended port.
+- The workflow must not start duplicate copies of the same service.
+- The application must not start additional detached copies of itself from inside the workflow.
+
+---
+
+## 4. Startup and shutdown requirements
+
+### 4.1 No hidden background processes
+
+Do not use hidden or unmanaged background processes such as:
+
+```bash
+nohup command &
+command &
+setsid command
+```
+
+unless the process is intentionally managed and the launcher also provides:
+
+- A PID or process-group identifier.
+- A stop command.
+- Signal forwarding.
+- Log handling.
+- Duplicate-process detection.
+- Cleanup on failure.
+- Clear documentation.
+
+Prefer a foreground process managed by:
+
+- The Replit workflow.
+- A systemd service.
+- A documented process supervisor.
+- A parent process that owns and supervises its children.
+
+### 4.2 No unexpected automatic startup
+
+The application must not install an automatic boot mechanism without making that explicit.
+
+If an installer supports boot startup:
+
+- Require an explicit option such as `--enable-boot`.
+- Print the exact service name and unit path.
+- Print the exact command needed to disable it.
+- Use a unique service name.
+- Do not modify another application’s service.
+- Do not create cron jobs or shell startup entries silently.
+
+If boot startup is not enabled, the installer must say:
+
+```text
+Automatic startup: disabled
+```
+
+### 4.3 Managed child processes
+
+If the application starts workers, frontend servers, browser processes, queue consumers, or helper processes:
+
+- The parent must track them.
+- The parent must forward termination signals.
+- The parent must stop them on shutdown.
+- Child processes must not survive accidentally after the parent exits.
+- Child processes must not bind undocumented ports.
+- Child process failures must be visible in the main logs.
+- Restart policies must be bounded and documented.
+
+The application must not create orphaned Node, Python, Vite, browser, or shell processes.
+
+### 4.4 Clean shutdown
+
+The application must handle:
+
+```text
+SIGTERM
+SIGINT
+SIGHUP
+```
+
+where applicable.
+
+On shutdown it must:
+
+1. Stop accepting new work.
+2. Finish or cancel active work according to documented rules.
+3. Stop child processes.
+4. Close database connections.
+5. Flush logs.
+6. Release listeners.
+7. Remove only its own temporary files and PID files.
+
+Shutdown must not kill processes by broad name or port.
+
+### 4.5 Duplicate startup protection
+
+Starting the same application instance twice must produce a clear error or a controlled handoff.
+
+It must not:
+
+- Start duplicate workers.
+- Create conflicting PID files.
+- Run two schedulers against the same database.
+- Send duplicate external commands.
+- Start a second listener on a different port without disclosure.
+
+---
+
+## 5. Installer requirements
+
+If the project has an installer, the installer must be safe to run on a host containing other applications.
+
+### 5.1 Installer behavior
+
+The installer must:
+
+- Accept non-interactive configuration.
+- Support explicit port arguments.
+- Validate all ports before making changes.
+- Display the final configuration before starting services.
+- Refuse ambiguous or conflicting configurations.
+- Be idempotent.
+- Only modify files and services owned by this application.
+- Never kill arbitrary listeners.
+- Never stop unrelated systemd services.
+- Never overwrite another application’s configuration.
+- Never assume a port is safe because it is the default.
+
+Recommended usage:
+
+```bash
+./install.sh --port 5007
+```
+
+or:
+
+```bash
+PORT=5007 ./install.sh
+```
+
+Interactive prompts may exist, but command-line and environment configuration must be supported for repeatable installation.
+
+### 5.2 Required installer summary
+
+At the end of installation, print:
+
+```text
+Application: ...
+Instance: ...
+Environment: ...
+Service: ...
+User: ...
+Working directory: ...
+Primary listener: ...
+Additional listeners: ...
+Automatic startup: enabled/disabled
+Data directory: ...
+Config directory: ...
+Log directory: ...
+Runtime directory: ...
+Health endpoint: ...
+Status command: ...
+Log command: ...
+Stop command: ...
+```
+
+For example:
+
+```text
+Primary listener: 0.0.0.0:5007
+Additional listeners: none
+Automatic startup: enabled
+Health endpoint: http://127.0.0.1:5007/healthz
+Status: sudo systemctl status solar-battery-optimiser-5007.service
+Logs: sudo journalctl -u solar-battery-optimiser-5007.service -f
+Stop: sudo systemctl stop solar-battery-optimiser-5007.service
+```
+
+### 5.3 No destructive port cleanup
+
+The installer must not contain logic equivalent to:
+
+```bash
+lsof -ti :$PORT | xargs kill
+fuser -k "$PORT/tcp"
+pkill -f node
+pkill -f vite
+killall node
+```
+
+If an operator explicitly requests forced cleanup, it must:
+
+- Require a separate explicit flag.
+- Display the identified process first.
+- Refuse to kill a process that cannot be confidently identified as belonging to this application.
+- Never use broad process-name matching.
+- Never affect unrelated ports.
+
+The normal install path must never perform forced cleanup.
+
+---
+
+## 6. Process and resource isolation
+
+### 6.1 Separate process identity
+
+Each application or instance must have its own:
+
+- Service name.
+- Unix user or service account where practical.
+- Process group.
+- Working directory.
+- Environment file.
+- Data directory.
+- Log namespace.
+- Runtime directory.
+- Temporary directory.
+
+Do not run multiple unrelated applications under one shared service identity if this can be avoided.
+
+### 6.2 CPU and memory controls
+
+Where the deployment platform supports resource controls, configure reasonable limits.
+
+For systemd-based Linux deployments, consider:
+
+```ini
+MemoryMax=
+MemoryHigh=
+CPUQuota=
+TasksMax=
+LimitNOFILE=
+IOReadBandwidthMax=
+IOWriteBandwidthMax=
+```
+
+The values must be chosen based on the application’s actual needs and documented.
+
+Resource limits must not be so restrictive that normal operation fails. They must also prevent one application from consuming all available memory, CPU, processes, or file descriptors.
+
+For Replit workflows, use one foreground service per workflow and avoid unmanaged background processes. If hard resource quotas cannot be configured by the application, document that limitation rather than pretending isolation exists.
+
+### 6.3 Memory safety
+
+The application must:
+
+- Bound in-memory queues.
+- Limit concurrent jobs.
+- Limit uploaded file sizes.
+- Limit image, audio, video, or document processing concurrency.
+- Use streaming or temporary files for large content.
+- Avoid loading unbounded datasets into memory.
+- Apply timeouts to external requests.
+- Release buffers and child processes on failure.
+
+The application must log resource-related failures clearly.
+
+### 6.4 CPU and worker safety
+
+The application must:
+
+- Use bounded worker counts.
+- Avoid using all CPU cores by default on small machines.
+- Make worker counts configurable.
+- Avoid unbounded retry loops.
+- Use exponential backoff with limits.
+- Avoid polling more frequently than necessary.
+- Avoid starting duplicate scheduled jobs.
+
+### 6.5 File descriptor and subprocess limits
+
+The application must not create unbounded:
+
+- Network sockets.
+- File handles.
+- Child processes.
+- Temporary files.
+- Watchers.
+- WebSocket connections.
+- Database connections.
+
+Where appropriate, implement:
+
+- Connection pools with limits.
+- Request timeouts.
+- Idle connection cleanup.
+- Maximum open files.
+- Maximum child process count.
+- Temporary file cleanup.
+
+---
+
+## 7. Filesystem and data isolation
+
+Each application must keep its data separate from every other application.
+
+Recommended structure for a Linux deployment:
+
+```text
+/etc/<app-name>/              configuration and environment files
+/var/lib/<app-name>/          persistent application data
+/var/log/<app-name>/          application logs, if not using journald
+/run/<app-name>/              runtime files and PID files
+/var/cache/<app-name>/        rebuildable caches
+```
+
+For a project-local deployment:
+
+```text
+<project>/data/
+<project>/logs/
+<project>/.runtime/
+<project>/.cache/
+```
+
+Requirements:
+
+- Never use another application’s data directory.
+- Never share a SQLite database with another application unless explicitly designed and documented.
+- Do not place persistent data in a build directory.
+- Do not store secrets in the repository.
+- Do not store secrets in frontend bundles.
+- Do not use generic filenames such as `/tmp/app.db`, `/tmp/server.pid`, or `/tmp/config.json`.
+- Use application-specific temporary paths.
+- Clean up only files owned by the application.
+
+If multiple instances are supported, separate them by instance identifier:
+
+```text
+/var/lib/<app-name>/<instance-id>/
+```
+
+---
+
+## 8. Configuration and secrets
+
+Configuration must be explicit and inspectable without exposing secrets.
+
+The application must provide:
+
+```bash
+--print-effective-config
+```
+
+or an equivalent diagnostic command.
+
+The output must show:
+
+- Host.
+- All ports.
+- Environment.
+- Instance name.
+- Data paths.
+- Log paths.
+- Enabled workers.
+- Enabled optional listeners.
+- Startup mode.
+- Resource settings.
+
+Secrets must be redacted:
+
+```text
+SOLAX_CLIENT_SECRET=[set]
+SESSION_SECRET=[set]
+```
+
+Never print:
+
+- Passwords.
+- API keys.
+- OAuth client secrets.
+- Tokens.
+- Private keys.
+- Connection strings containing credentials.
+
+Configuration precedence must be documented and consistent.
+
+Do not silently read configuration from unrelated applications, parent directories, global shell files, or arbitrary `.env` files.
+
+---
+
+## 9. Network isolation
+
+### 9.1 Listener binding
+
+The bind host must be configurable.
+
+Typical defaults:
+
+- Replit preview: `0.0.0.0`
+- Local-only administrative service: `127.0.0.1`
+- Public production listener: platform-appropriate configured interface
+
+The application must report:
+
+```text
+Listening on: 0.0.0.0:5007
+```
+
+Do not bind additional interfaces or ports without reporting them.
+
+### 9.2 Outbound requests
+
+External requests must use:
+
+- Explicit timeouts.
+- Bounded retries.
+- Exponential backoff.
+- Response-size limits.
+- Clear error logging.
+- No infinite retry loops.
+
+External API failures must not cause uncontrolled process growth or resource exhaustion.
+
+### 9.3 Internal service URLs
+
+Internal URLs must be configurable.
+
+Do not assume another application is running on:
+
+```text
+localhost:3000
+localhost:5000
+localhost:8000
+```
+
+unless that is explicitly part of this application’s configuration.
+
+---
+
+## 10. Logging and operational visibility
+
+The application must make its actual runtime state easy to inspect.
+
+At startup, log a structured summary containing:
+
+```text
+application name
+version
+environment
+instance
+process ID
+parent process ID
+working directory
+primary listener
+all additional listeners
+configured ports
+actual bound ports
+data directory
+config directory
+log directory
+worker count
+automatic startup status
+```
+
+Example:
+
+```text
+Application started
+name=example-app
+instance=default
+pid=12345
+primary_listener=0.0.0.0:5000
+additional_listeners=none
+data_dir=/var/lib/example-app
+workers=2
+automatic_startup=disabled
+```
+
+The application must provide:
+
+- A health endpoint on the primary port.
+- A readiness endpoint if startup is asynchronous.
+- A status command.
+- A log command.
+- A way to list active listeners.
+- A way to print the effective configuration.
+- Clear startup and shutdown messages.
+
+Recommended endpoints:
+
+```text
+GET /healthz
+GET /readyz
+GET /api/status
+```
+
+Health checks must not expose secrets.
+
+---
+
+## 11. Diagnostic commands
+
+Every installed application should provide equivalent commands to:
+
+```bash
+app status
+app doctor
+app ports
+app logs
+app stop
+app restart
+app print-effective-config
+```
+
+If the application does not have a CLI, provide documented alternatives.
+
+The diagnostic output should identify:
+
+- Whether the expected process is running.
+- Which PID owns the listener.
+- Which ports are configured.
+- Which ports are actually bound.
+- Whether duplicate processes exist.
+- Whether required directories are writable.
+- Whether another process owns a requested port.
+- Whether child processes are alive.
+- Whether the database is locked or unavailable.
+- Whether resource limits are being reached.
+
+---
+
+## 12. Database and scheduler isolation
+
+If the application has scheduled jobs:
+
+- There must be exactly one scheduler per application instance unless multiple schedulers are explicitly coordinated.
+- Scheduler state must be stored separately per instance.
+- Scheduled jobs must be idempotent.
+- A restart must not duplicate work.
+- A failed job must not create an uncontrolled retry storm.
+- A scheduler must stop cleanly.
+- The scheduler must not run merely because another application is running.
+
+For SQLite:
+
+- Use a separate database file per application or instance.
+- Use a separate SQLite connection configuration.
+- Avoid sharing SQLite files over network filesystems.
+- Configure busy timeouts and bounded retries.
+- Ensure only the intended application writes to the database.
+
+---
+
+## 13. Dependency and build isolation
+
+The application must not rely on global packages where a project-local dependency is possible.
+
+Requirements:
+
+- Use the project’s package manager and lockfile.
+- Pin or constrain runtime versions.
+- Do not install global Node, Python, or system packages without explicit documentation.
+- Do not modify another project’s `node_modules`.
+- Do not run package installation as root unless absolutely necessary.
+- Keep build output separate from source and runtime data.
+- Do not run development watchers in production.
+- Do not rebuild another application’s native modules.
+- Do not change global package-manager configuration silently.
+
+If a native dependency is required, document:
+
+- Runtime version.
+- CPU architecture.
+- Build requirements.
+- Rebuild procedure.
+- Failure symptoms.
+
+---
+
+## 14. Systemd requirements for Linux or Raspberry Pi deployments
+
+If the project installs a systemd service:
+
+- Use a unique service name.
+- Use an explicit `User=`.
+- Use an explicit `Group=`.
+- Set `WorkingDirectory=`.
+- Set all required environment values.
+- Use an application-specific environment file.
+- Use `Restart=on-failure` only where appropriate.
+- Use a bounded `RestartSec`.
+- Do not restart unrelated services.
+- Do not use `ExecStartPost` to kill arbitrary processes.
+- Do not use `ExecStop` with broad process matching.
+- Use a dedicated process group.
+- Set resource controls where appropriate.
+- Use `WantedBy=multi-user.target` only when automatic startup is explicitly enabled.
+
+The installer must run:
+
+```bash
+systemctl daemon-reload
+systemctl enable <unique-service-name>
+systemctl start <unique-service-name>
+```
+
+only for the application’s own service.
+
+The installer must print:
+
+```text
+Service installed: <unique-service-name>
+Automatic startup: enabled
+```
+
+If automatic startup was not requested:
+
+```text
+Service installed: <unique-service-name>
+Automatic startup: disabled
+```
+
+---
+
+## 15. Required implementation workflow for the Replit agent
+
+When given this specification, the agent must follow this order.
+
+### Step 1: Audit before editing
+
+Inspect:
+
+- `package.json`
+- Workspace configuration
+- Workflow configuration
+- Start and development scripts
+- Install scripts
+- Docker or systemd files
+- Process spawning code
+- Environment-variable handling
+- Frontend API URLs
+- Existing port declarations
+- Existing database and log paths
+
+The agent must report:
+
+- Current listeners.
+- Current processes.
+- Current startup behavior.
+- Existing port configuration.
+- Existing unsafe process-kill behavior.
+- Existing hidden background processes.
+- Existing shared paths.
+- Any conflicts with this specification.
+
+### Step 2: Preserve working behavior
+
+Do not rewrite the application unnecessarily.
+
+The agent should first make the smallest safe changes that:
+
+- Make ports configurable.
+- Remove silent port fallback.
+- Remove destructive process cleanup.
+- Expose the actual runtime configuration.
+- Isolate data and runtime paths.
+- Improve startup and shutdown handling.
+
+### Step 3: Implement required behavior
+
+The agent must implement the applicable requirements from this specification and clearly identify anything that cannot be implemented due to platform limitations.
+
+It must not claim that resource isolation exists if the platform does not provide enforceable limits.
+
+### Step 4: Add tests
+
+At minimum, test:
+
+1. The application starts on the configured primary port.
+2. The application fails clearly when that port is occupied.
+3. The application does not kill the process occupying the port.
+4. Every required secondary port is configurable.
+5. Secondary listeners are reported.
+6. No silent fallback to a different port occurs.
+7. The health endpoint uses the primary port.
+8. A clean shutdown releases all listeners.
+9. Child processes terminate with the parent.
+10. Duplicate startup is rejected or handled safely.
+11. Data paths are separate from other applications.
+12. Secrets are not printed.
+13. Production mode does not start unnecessary development servers.
+14. The installer is idempotent.
+15. The installer does not modify unrelated services.
+
+### Step 5: Verify operationally
+
+After implementation:
+
+- Start the application using its documented workflow.
+- Inspect the process tree.
+- Inspect all listening ports.
+- Check the health endpoint.
+- Stop the application.
+- Confirm all listeners are released.
+- Start it again using the configured port.
+- Run the full typecheck and build.
+- Review logs for errors.
+- Confirm that no unrelated process was stopped or modified.
+
+Useful checks include:
+
+```bash
+ss -ltnp
+ps -ef --forest
+pgrep -af '<application-name>'
+curl -fsS http://127.0.0.1:<port>/healthz
+```
+
+---
+
+## 16. Acceptance criteria
+
+The project is compliant only when all applicable statements below are true:
+
+- The application has one primary externally exposed port.
+- Any additional ports have a documented technical reason.
+- Every port can be explicitly configured.
+- The actual port configuration is printed at startup.
+- Port collisions cause a clear failure.
+- No process is killed automatically because a port is occupied.
+- No alternate port is silently selected.
+- The application does not start hidden detached processes.
+- Child processes are tracked and stopped.
+- The installer does not create undocumented boot behavior.
+- Automatic startup is explicit and visible.
+- Data, logs, configuration, runtime files, and databases are isolated.
+- The application does not use another application’s directories.
+- Resource use is bounded where practical.
+- External requests have timeouts and bounded retries.
+- Scheduled work is isolated and idempotent.
+- Replit workflows honor the provided `PORT`.
+- Browser code does not hardcode another application’s localhost port.
+- The app provides a health endpoint and operational status information.
+- The project documentation lists every listener and startup command.
+- Tests verify that the application cannot interfere with another application on the same host.
+
+---
+
+## Short instruction to place above this specification
+
+Apply the following specification to this project. First audit the existing architecture and report current ports, processes, startup behavior, and possible interference risks. Then implement the smallest complete set of changes needed for compliance. Do not kill unrelated processes, silently change ports, install hidden startup mechanisms, or make broad rewrites. Preserve existing functionality, add tests for port collisions and clean shutdown, and finish by verifying the full process tree, listeners, health endpoint, build, and logs.
