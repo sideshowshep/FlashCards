@@ -1,6 +1,6 @@
 {
-  "name": "Picture Flashcards",
-  "short_name": "Picture Cards",
+  "name": "Flashcards",
+  "short_name": "Flashcards",
   "description": "A shared picture flashcard practice tool for children and adults.",
   "start_url": "/",
   "display": "standalone",
