@@ -12,6 +12,7 @@ export interface Card {
   /** @nullable */
   category: string | null;
   imageUrl: string;
+  isVisible: boolean;
   createdAt: string;
   updatedAt: string;
 }

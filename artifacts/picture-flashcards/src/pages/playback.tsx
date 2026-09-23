@@ -45,10 +45,14 @@ export default function Playback() {
   const playbackImageRef = useRef<HTMLImageElement | null>(null);
   const preparedImageRef = useRef<HTMLImageElement | null>(null);
   const cardsQuery = useListCards();
+  const playableCards = useMemo(
+    () => (cardsQuery.data ?? []).filter((item) => item.isVisible),
+    [cardsQuery.data],
+  );
   const randomQuery = useGetRandomCard(undefined, {
     query: {
       queryKey: getGetRandomCardQueryKey(undefined),
-      enabled: !cardsQuery.isLoading && (cardsQuery.data?.length ?? 0) > 0,
+      enabled: !cardsQuery.isLoading && playableCards.length > 0,
       refetchOnWindowFocus: false,
     },
   });
@@ -70,6 +74,12 @@ export default function Playback() {
         ? UNCATEGORISED_CATEGORY_KEY
         : categoryKey(category));
   }, [location]);
+  const hasSelectedPlaybackCards = useMemo(
+    () => selectedCategoryKeys.length > 0 && playableCards.some((item) => (
+      selectedCategoryKeys.includes(selectedCategoryKey(item.category))
+    )),
+    [playableCards, selectedCategoryKeys],
+  );
   const selectedTextCase = useMemo<CardTextCase>(() => {
     const query = typeof window !== 'undefined'
       ? window.location.search
@@ -95,7 +105,7 @@ export default function Playback() {
   };
 
   const startPlayback = () => {
-    startPlaybackWithCards(cardsQuery.data ?? []);
+    startPlaybackWithCards(playableCards);
   };
 
   const startPlaybackWithCards = (cardsInSet: Card[], waitForFirstImage = false) => {
@@ -117,14 +127,14 @@ export default function Playback() {
       || playing
       || playbackOrder.length > 0
     ) return;
-    const cardsInSet = (cardsQuery.data ?? []).filter((item) => (
+    const cardsInSet = playableCards.filter((item) => (
       selectedCategoryKeys.includes(selectedCategoryKey(item.category))
     ));
     const reminderTimer = window.setTimeout(() => {
       startPlaybackWithCards(cardsInSet, true);
     }, PLAYBACK_REMINDER_DELAY);
     return () => window.clearTimeout(reminderTimer);
-  }, [cardsQuery.data, cardsQuery.isLoading, playbackOrder.length, playing, selectedCategoryKeys]);
+  }, [cardsQuery.isLoading, hasSelectedPlaybackCards, playableCards, playbackOrder.length, playing, selectedCategoryKeys]);
 
   useEffect(() => {
     if (playing || !playbackOrder[0]) return;
@@ -144,9 +154,9 @@ export default function Playback() {
   }, [playing, playbackCard?.id, playbackToken]);
 
   const isLoading = cardsQuery.isLoading || randomQuery.isLoading;
-  const hasCards = (cardsQuery.data?.length ?? 0) > 0;
+  const hasCards = playableCards.length > 0;
 
-  if (selectedCategoryKeys.length > 0 && !playing) {
+  if (selectedCategoryKeys.length > 0 && !playing && (cardsQuery.isLoading || hasSelectedPlaybackCards || playbackOrder[0])) {
     return (
       <main
         className="playback-focus fixed inset-0 z-50 grid min-h-[100dvh] place-items-center bg-[hsl(var(--background))] text-[hsl(var(--foreground))]"

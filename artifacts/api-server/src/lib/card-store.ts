@@ -26,6 +26,7 @@ export type StoredCard = {
   category: string | null;
   imageUrl: string;
   imageFile: string;
+  isVisible: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -55,7 +56,10 @@ async function readCards(): Promise<StoredCard[]> {
   if (!Array.isArray(parsed)) {
     throw new Error("The flashcard catalogue is not a JSON array");
   }
-  return parsed as StoredCard[];
+  return parsed.map((card) => ({
+    ...(card as StoredCard),
+    isVisible: (card as Partial<StoredCard>).isVisible !== false,
+  }));
 }
 
 async function writeCards(cards: StoredCard[]) {
@@ -160,7 +164,7 @@ export async function listCards(category?: string) {
 }
 
 export async function getRandomCard(category?: string) {
-  const cards = await listCards(category);
+  const cards = (await listCards(category)).filter((card) => card.isVisible);
   if (!cards.length) return undefined;
   return cards[Math.floor(Math.random() * cards.length)];
 }
@@ -197,6 +201,7 @@ export async function createCard(input: {
     category: normaliseCategory(input.category),
     imageUrl: `/api/cards/images/${imageFile}`,
     imageFile,
+    isVisible: true,
     createdAt: now,
     updatedAt: now,
   };
@@ -211,6 +216,7 @@ export async function updateCard(
   input: {
     title: string;
     category?: string | null;
+    isVisible?: boolean;
     imageData?: string;
     crop?: Crop;
   },
@@ -232,6 +238,7 @@ export async function updateCard(
     ...existing,
     title: input.title.trim(),
     category: normaliseCategory(input.category),
+    isVisible: input.isVisible ?? existing.isVisible,
     imageUrl,
     imageFile,
     updatedAt: new Date().toISOString(),

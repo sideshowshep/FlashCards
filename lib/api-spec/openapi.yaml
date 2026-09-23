@@ -174,11 +174,13 @@ components:
           type: ["string", "null"]
         imageUrl:
           type: string
+        isVisible:
+          type: boolean
         createdAt:
           type: string
         updatedAt:
           type: string
-      required: [id, title, category, imageUrl, createdAt, updatedAt]
+      required: [id, title, category, imageUrl, isVisible, createdAt, updatedAt]
     CardInput:
       type: object
       properties:
@@ -204,6 +206,8 @@ components:
           maxLength: 120
         category:
           type: ["string", "null"]
+        isVisible:
+          type: boolean
         imageData:
           type: string
         crop:

@@ -29,6 +29,7 @@ export const ListCardsResponseItem = zod.object({
   "title": zod.string(),
   "category": zod.string().nullable(),
   "imageUrl": zod.string(),
+  "isVisible": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -70,6 +71,7 @@ export const CreateCardResponse = zod.object({
   "title": zod.string(),
   "category": zod.string().nullable(),
   "imageUrl": zod.string(),
+  "isVisible": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -97,6 +99,7 @@ export const GetRandomCardResponse = zod.object({
   "title": zod.string(),
   "category": zod.string().nullable(),
   "imageUrl": zod.string(),
+  "isVisible": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -124,6 +127,7 @@ export const updateCardBodyCropHeightExclusiveMin = 0;
 export const UpdateCardBody = zod.object({
   "title": zod.string().min(1).max(updateCardBodyTitleMax),
   "category": zod.string().nullish(),
+  "isVisible": zod.boolean().optional(),
   "imageData": zod.string().optional(),
   "crop": zod.object({
   "x": zod.number().min(updateCardBodyCropXMin),
@@ -138,6 +142,7 @@ export const UpdateCardResponse = zod.object({
   "title": zod.string(),
   "category": zod.string().nullable(),
   "imageUrl": zod.string(),
+  "isVisible": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })

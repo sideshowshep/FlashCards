@@ -15,6 +15,7 @@ export interface CardUpdate {
   title: string;
   /** @nullable */
   category?: string | null;
+  isVisible?: boolean;
   imageData?: string;
   crop?: Crop;
 }

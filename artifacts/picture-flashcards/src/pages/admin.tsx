@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
-import { ChevronDown, CircleAlert, FolderOpen, LoaderCircle, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, CircleAlert, Eye, EyeOff, FolderOpen, LoaderCircle, Plus, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetCardsSummaryQueryKey,
@@ -9,6 +9,7 @@ import {
   useGetCardsSummary,
   useHealthCheck,
   useListCards,
+  useUpdateCard,
 } from '@workspace/api-client-react';
 import type { Card } from '@workspace/api-client-react';
 import { BrandMark } from '@/components/brand-mark';
@@ -29,17 +30,20 @@ export default function Admin() {
   const [startTextCase, setStartTextCase] = useState<CardTextCase>('upper');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => new Set());
   const [deleteError, setDeleteError] = useState('');
+  const [visibilityError, setVisibilityError] = useState('');
   const [, navigate] = useLocation();
   const allCardsQuery = useListCards();
   const summaryQuery = useGetCardsSummary();
   const healthQuery = useHealthCheck();
   const deleteCard = useDeleteCard();
+  const updateCard = useUpdateCard();
   const cards = allCardsQuery.data ?? [];
   const categories = useMemo(
     () => {
       const labels = new Map<string, string>();
       let hasUncategorised = false;
       for (const card of cards) {
+        if (!card.isVisible) continue;
         if (card.category?.trim()) {
           const label = card.category.trim();
           labels.set(categoryKey(label), labels.get(categoryKey(label)) ?? label);
@@ -116,6 +120,27 @@ export default function Admin() {
     navigate(`/edit/${encodeURIComponent(card.id)}`);
   };
 
+  const toggleCardVisibility = (event: React.MouseEvent<HTMLButtonElement>, card: Card) => {
+    event.stopPropagation();
+    setVisibilityError('');
+    updateCard.mutate(
+      {
+        id: card.id,
+        data: {
+          title: card.title,
+          category: card.category,
+          isVisible: !card.isVisible,
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListCardsQueryKey() });
+        },
+        onError: () => setVisibilityError(`Could not update whether ${card.title} is shown in practice.`),
+      },
+    );
+  };
+
   const confirmDelete = () => {
     if (!deleteTarget) return;
     setDeleteError('');
@@ -157,6 +182,7 @@ export default function Admin() {
         </section>
 
         <section className="pb-12 pt-0">
+          {visibilityError && <p className="mb-5 rounded-xl border border-[hsl(var(--destructive)/.3)] bg-[hsl(var(--destructive)/.07)] px-4 py-3 text-sm text-[hsl(var(--destructive))]" role="alert">{visibilityError}</p>}
           {allCardsQuery.isError ? (
             <div className="rounded-[22px] border border-[hsl(var(--destructive)/.3)] bg-[hsl(var(--destructive)/.07)] px-6 py-12 text-center" role="alert" data-testid="status-catalogue-error">
               <CircleAlert className="mx-auto mb-3 text-[hsl(var(--destructive))]" size={24} />
@@ -220,6 +246,18 @@ export default function Admin() {
                                   <img src={card.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" data-testid={`img-catalogue-${card.id}`} />
                                 </div>
                                 <h3 className="min-w-0 flex-1 truncate font-serif text-xl font-semibold tracking-[-0.035em]" data-testid={`text-card-title-${card.id}`}>{card.title}</h3>
+                                <button
+                                  type="button"
+                                  onClick={(event) => toggleCardVisibility(event, card)}
+                                  disabled={updateCard.isPending}
+                                  aria-label={`${card.isVisible ? 'Hide' : 'Show'} ${card.title} in practice`}
+                                  aria-pressed={card.isVisible}
+                                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg transition-colors disabled:cursor-wait disabled:opacity-50 ${card.isVisible ? 'text-[hsl(var(--primary))] hover:bg-[hsl(var(--accent)/.18)]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]'}`}
+                                  data-testid={`button-toggle-visibility-${card.id}`}
+                                  title={card.isVisible ? 'Hide from practice' : 'Show in practice'}
+                                >
+                                  {card.isVisible ? <Eye size={17} /> : <EyeOff size={17} />}
+                                </button>
                               </article>
                             ))}
                           </div>

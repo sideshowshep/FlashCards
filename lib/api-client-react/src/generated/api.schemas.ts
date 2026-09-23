@@ -26,6 +26,7 @@ export interface Card {
   /** @nullable */
   category: string | null;
   imageUrl: string;
+  isVisible: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -54,6 +55,7 @@ export interface CardUpdate {
   title: string;
   /** @nullable */
   category?: string | null;
+  isVisible?: boolean;
   imageData?: string;
   crop?: Crop;
 }
