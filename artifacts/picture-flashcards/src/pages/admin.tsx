@@ -243,7 +243,7 @@ export default function Admin() {
                               >
                                 <button type="button" onClick={(event) => { event.stopPropagation(); setDeleteTarget(card); setDeleteError(''); }} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[hsl(var(--destructive))] transition-colors hover:bg-[hsl(var(--destructive)/.1)]" aria-label={`Delete ${card.title}`} data-testid={`button-delete-card-${card.id}`}><Trash2 size={15} /></button>
                                 <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[hsl(var(--muted))] sm:h-20 sm:w-20">
-                                  <img src={card.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" data-testid={`img-catalogue-${card.id}`} />
+                                  <img src={card.imageUrl} alt="" className={`h-full w-full object-cover transition-[filter,opacity,transform] duration-300 group-hover:scale-[1.04] ${card.isVisible ? '' : 'saturate-0 opacity-55'}`} data-testid={`img-catalogue-${card.id}`} />
                                 </div>
                                 <h3 className="min-w-0 flex-1 truncate font-serif text-xl font-semibold tracking-[-0.035em]" data-testid={`text-card-title-${card.id}`}>{card.title}</h3>
                                 <button
