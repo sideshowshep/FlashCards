@@ -76,7 +76,13 @@ valid_host() {
 }
 
 pid_is_running() {
-  [[ "$1" =~ ^[0-9]+$ ]] && kill -0 "$1" 2>/dev/null
+  local pid="$1"
+  local state
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  [[ -r "/proc/$pid/stat" ]] || return 0
+  state="$(awk '{print $3}' "/proc/$pid/stat" 2>/dev/null || true)"
+  [[ "$state" != "Z" && "$state" != "X" ]]
 }
 
 pid_command() {
@@ -493,6 +499,29 @@ stop_orphaned_app() {
   rm -f "$APP_PID_FILE"
 }
 
+restart_owned_processes() {
+  local supervisor
+  supervisor="$(supervisor_pid 2>/dev/null || true)"
+
+  if [[ -n "$supervisor" ]]; then
+    if [[ "$supervisor" == "$$" ]]; then
+      rm -f "$SUPERVISOR_PID_FILE"
+    elif pid_belongs_to_app "$supervisor"; then
+      stop_owned_supervisor
+    elif ! pid_is_running "$supervisor"; then
+      rm -f "$SUPERVISOR_PID_FILE"
+    elif pid_is_managed_app "$supervisor"; then
+      echo "Stopping this application's stale API PID recorded as supervisor (PID $supervisor)."
+      stop_process_group "$supervisor"
+      rm -f "$SUPERVISOR_PID_FILE"
+    else
+      fail "Refusing to stop PID $supervisor because it is not owned by this application."
+    fi
+  fi
+
+  stop_orphaned_app
+}
+
 stop_owned_supervisor() {
   local pid
   pid="$(supervisor_pid 2>/dev/null || true)"
@@ -656,11 +685,7 @@ show_status() {
   if systemd_service_active; then
     echo "Systemd service: active ($SERVICE_NAME)"
   elif systemd_service_enabled; then
-    if systemd_service_active; then
-      echo "Systemd service: enabled and active ($SERVICE_NAME)"
-    else
-      echo "Systemd service: enabled but inactive ($SERVICE_NAME)"
-    fi
+    echo "Systemd service: enabled but inactive ($SERVICE_NAME)"
   else
     echo "Systemd service: not enabled"
   fi
@@ -714,14 +739,10 @@ main() {
           fi
         fi
       fi
-      if supervisor_is_running; then
-        if [[ "$RESTART_OWNED" == true ]]; then
-          stop_owned_supervisor
-        else
-          fail "This application is already running. Use --restart-owned only when restarting this application's own supervisor."
-        fi
-      elif [[ "$RESTART_OWNED" == true ]]; then
-        stop_orphaned_app
+      if [[ "$RESTART_OWNED" == true ]]; then
+        restart_owned_processes
+      elif supervisor_is_running; then
+        fail "This application is already running. Use --restart-owned only when restarting this application's own supervisor."
       fi
       check_port
       write_config
