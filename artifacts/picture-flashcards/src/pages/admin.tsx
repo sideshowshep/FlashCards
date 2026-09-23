@@ -241,7 +241,7 @@ export default function Admin() {
                                 className="group flex cursor-pointer items-center gap-3 border-b border-[hsl(var(--border)/.7)] p-3 transition-colors hover:bg-[hsl(var(--muted)/.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))] last:border-b-0 sm:gap-4 sm:p-4"
                                 data-testid={`card-catalogue-${card.id}`}
                               >
-                                <button type="button" onClick={(event) => { event.stopPropagation(); setDeleteTarget(card); setDeleteError(''); }} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[hsl(var(--destructive))] transition-colors hover:bg-[hsl(var(--destructive)/.1)]" aria-label={`Delete ${card.title}`} data-testid={`button-delete-card-${card.id}`}><Trash2 size={15} /></button>
+                                <button type="button" onClick={(event) => { event.stopPropagation(); setDeleteTarget(card); setDeleteError(''); }} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-[hsl(var(--destructive))] transition-colors hover:bg-[hsl(var(--destructive)/.1)]" aria-label={`Delete ${card.title}`} data-testid={`button-delete-card-${card.id}`}><Trash2 size={19} /></button>
                                 <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[hsl(var(--muted))] sm:h-20 sm:w-20">
                                   <img src={card.imageUrl} alt="" className={`h-full w-full object-cover transition-[filter,opacity,transform] duration-300 group-hover:scale-[1.04] ${card.isVisible ? '' : 'saturate-0 opacity-55'}`} data-testid={`img-catalogue-${card.id}`} />
                                 </div>
@@ -252,11 +252,11 @@ export default function Admin() {
                                   disabled={updateCard.isPending}
                                   aria-label={`${card.isVisible ? 'Hide' : 'Show'} ${card.title} in practice`}
                                   aria-pressed={card.isVisible}
-                                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg transition-colors disabled:cursor-wait disabled:opacity-50 ${card.isVisible ? 'text-[hsl(var(--primary))] hover:bg-[hsl(var(--accent)/.18)]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]'}`}
+                                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg transition-colors disabled:cursor-wait disabled:opacity-50 ${card.isVisible ? 'text-[hsl(var(--primary))] hover:bg-[hsl(var(--accent)/.18)]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]'}`}
                                   data-testid={`button-toggle-visibility-${card.id}`}
                                   title={card.isVisible ? 'Hide from practice' : 'Show in practice'}
                                 >
-                                  {card.isVisible ? <Eye size={17} /> : <EyeOff size={17} />}
+                                  {card.isVisible ? <Eye size={21} /> : <EyeOff size={21} />}
                                 </button>
                               </article>
                             ))}
