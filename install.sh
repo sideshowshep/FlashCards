@@ -484,7 +484,8 @@ pid_is_managed_app() {
     || return 1
   command="$(pid_command "$pid")"
   [[ "$command" == *"@workspace/api-server"* ]] \
-    || [[ "$command" == *"$APP_ROOT/artifacts/api-server/dist/index.mjs"* ]]
+    || [[ "$command" == *"$APP_ROOT/artifacts/api-server/dist/index.mjs"* ]] \
+    || [[ "$cwd" == "$APP_ROOT/artifacts/api-server" && "$command" == *"dist/index.mjs"* ]]
 }
 
 stop_orphaned_app() {
