@@ -59,20 +59,26 @@ A local-first educational PWA for building a shared picture flashcard catalogue 
 The supported local deployment uses one listener for the built frontend and the
 Express API. Vite is used only for development and Replit workflows.
 
-Use the launcher as the sole process supervisor:
+Use the launcher as the foreground supervisor, or install its systemd service
+for automatic startup and restart:
 
 - `./install.sh --port 5016` — build and run this instance
+- `./install.sh --port 5016 --install-service` — build, install, enable, and start `picture-flashcards.service`
+- `./install.sh --use-saved-config --install-service` — enable systemd using the saved port and host
 - `./install.sh --print-effective-config` — print hosts, ports, paths, health checks, and startup mode
 - `./install.sh --check` — fail safely if the configured port is occupied
-- `./install.sh --status` — show the owned supervisor, child PIDs, and listeners
-- `./install.sh --logs` — show recent application logs
-- `./install.sh --stop` — stop only this application's managed process group
-- `./update.sh` — update and restart only this application's own supervisor
+- `./install.sh --status` — show the owned supervisor, systemd service, and listener
+- `./install.sh --logs` — show recent application logs or systemd journal entries
+- `./install.sh --stop` — stop only this application's managed process or systemd service
+- `./install.sh --uninstall-service` — disable and remove the systemd service
+- `./update.sh` — update and restart only this application's managed service or supervisor
 
-The launcher does not install systemd, cron, or another boot mechanism. Automatic
-startup is disabled unless an operator explicitly adds an external service
-manager. It never kills an arbitrary process because a port is occupied; choose
-another `--port` instead.
+`--install-service` writes `/etc/systemd/system/picture-flashcards.service`,
+enables it at boot, and starts it immediately. The service runs as the invoking
+user, restarts after failures, and uses the saved port, host, data directory,
+and built frontend. `./update.sh` preserves systemd management when the service
+is enabled. The launcher never kills an arbitrary process because a port is
+occupied; choose another `--port` instead.
 
 ## Pointers
 

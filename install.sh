@@ -271,6 +271,8 @@ systemd_service_active() {
 
 require_systemd() {
   systemd_available || fail "systemctl is required for --install-service."
+  [[ -d /run/systemd/system ]] \
+    || fail "systemd is not running on this device; run --install-service on the Raspberry Pi."
   if (( EUID != 0 )); then
     command -v sudo >/dev/null 2>&1 || fail "sudo is required to manage $SERVICE_NAME."
   fi
@@ -323,10 +325,13 @@ write_systemd_unit() {
   require_systemd
 
   local service_user="${SUDO_USER:-$(id -un)}"
+  local service_group
+  local service_path="$PATH"
   [[ "$service_user" =~ ^[A-Za-z0-9._-]+$ ]] \
     || fail "Cannot create $SERVICE_NAME: invalid service user."
   id "$service_user" >/dev/null 2>&1 \
     || fail "Cannot create $SERVICE_NAME: service user does not exist: $service_user"
+  service_group="$(id -gn "$service_user")"
   [[ "$APP_ROOT" != *[[:space:]]* ]] \
     || fail "Cannot create $SERVICE_NAME: the application path contains whitespace."
 
@@ -346,6 +351,7 @@ EnvironmentFile=-$CONFIG_FILE
 Environment=NODE_ENV=production
 Environment=APPLICATION_NAME=$APPLICATION_NAME
 Environment=AUTOMATIC_STARTUP=systemd
+Environment=PATH=$service_path
 Environment=FLASHCARDS_DATA_DIR=$DATA_DIR
 Environment=FLASHCARDS_STATIC_DIR=$STATIC_DIR
 ExecStart=/bin/bash $APP_ROOT/install.sh --service
@@ -358,7 +364,7 @@ TimeoutStopSec=30
 WantedBy=multi-user.target
 EOF
 
-  privileged_run install -o "$service_user" -g "$service_user" -m 0644 \
+  privileged_run install -o "$service_user" -g "$service_group" -m 0644 \
     "$unit_source" "$SERVICE_FILE"
   rm -f "$unit_source"
 }
@@ -490,6 +496,26 @@ handle_signal() {
   exit 0
 }
 
+stop_application() {
+  if systemd_service_active; then
+    systemd_run stop "$SERVICE_NAME"
+    echo "Stopped $APPLICATION_NAME systemd service."
+    return 0
+  fi
+  stop_owned_supervisor
+}
+
+show_logs() {
+  if systemd_service_enabled && command -v journalctl >/dev/null 2>&1; then
+    journalctl -u "$SERVICE_NAME" -n 120 --no-pager
+    return
+  fi
+  if [[ -f "$LOG_DIR/app.log" ]]; then
+    echo "### $LOG_DIR/app.log"
+    tail -n 120 "$LOG_DIR/app.log"
+  fi
+}
+
 install_dependencies_and_build() {
   cd "$APP_ROOT"
   echo "Installing workspace dependencies locally..."
@@ -523,6 +549,20 @@ start_managed_app() {
   echo "$pid"
 }
 
+run_systemd_service() {
+  mkdir -p "$DATA_DIR"
+  exec env \
+    NODE_ENV=production \
+    APPLICATION_NAME="$APPLICATION_NAME" \
+    INSTANCE_NAME="$INSTANCE_NAME" \
+    AUTOMATIC_STARTUP=systemd \
+    HOST="$HOST" \
+    PORT="$PORT" \
+    FLASHCARDS_DATA_DIR="$DATA_DIR" \
+    FLASHCARDS_STATIC_DIR="$STATIC_DIR" \
+    "${PNPM_CMD[@]}" --filter @workspace/api-server run start
+}
+
 wait_for_health() {
   command -v curl >/dev/null 2>&1 || return 0
   local health_url="http://127.0.0.1:$PORT/api/healthz"
@@ -552,7 +592,7 @@ run_supervisor() {
   echo "Instance: $INSTANCE_NAME"
   echo "Supervisor PID: $$"
   echo "Listener: $HOST:$PORT (frontend and API)"
-  echo "Automatic startup: disabled"
+  echo "Automatic startup: disabled (foreground mode)"
   echo "Data: $DATA_DIR"
   echo "Static UI: $STATIC_DIR"
   echo "Logs: $LOG_DIR"
@@ -583,6 +623,15 @@ show_status() {
   else
     echo "Application process: stopped"
   fi
+  if systemd_service_enabled; then
+    if systemd_service_active; then
+      echo "Systemd service: enabled and active ($SERVICE_NAME)"
+    else
+      echo "Systemd service: enabled but inactive ($SERVICE_NAME)"
+    fi
+  else
+    echo "Systemd service: not enabled"
+  fi
   echo "Listener:"
   port_owner
 }
@@ -608,16 +657,31 @@ main() {
       show_status
       ;;
     logs)
-      if [[ -f "$LOG_DIR/app.log" ]]; then
-        echo "### $LOG_DIR/app.log"
-        tail -n 120 "$LOG_DIR/app.log"
-      fi
+      show_logs
       ;;
     stop)
-      stop_owned_supervisor
+      stop_application
+      ;;
+    service-remove)
+      remove_systemd_service
+      ;;
+    service)
+      ensure_runtime
+      run_systemd_service
       ;;
     install)
       ensure_runtime
+      [[ "$SYSTEMD_ACTION" != "install" ]] || require_systemd
+      if systemd_service_enabled; then
+        SYSTEMD_WAS_MANAGED=true
+        if systemd_service_active; then
+          if [[ "$RESTART_OWNED" == true ]]; then
+            systemd_run stop "$SERVICE_NAME"
+          else
+            fail "This application is already running under $SERVICE_NAME. Use --restart-owned only when restarting this application's own service."
+          fi
+        fi
+      fi
       if supervisor_is_running; then
         if [[ "$RESTART_OWNED" == true ]]; then
           stop_owned_supervisor
@@ -628,7 +692,14 @@ main() {
       check_port
       write_config
       install_dependencies_and_build
-      run_supervisor
+      if [[ "$SYSTEMD_ACTION" == "install" ]]; then
+        install_systemd_service
+      elif [[ "$SYSTEMD_WAS_MANAGED" == true ]]; then
+        systemd_run start "$SERVICE_NAME"
+        echo "Restarted $SERVICE_NAME."
+      else
+        run_supervisor
+      fi
       ;;
   esac
 }
