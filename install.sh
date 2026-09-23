@@ -480,7 +480,8 @@ pid_is_managed_app() {
   local command
   pid_is_running "$pid" || return 1
   cwd="$(readlink "/proc/$pid/cwd" 2>/dev/null || true)"
-  [[ "$cwd" == "$APP_ROOT" ]] || return 1
+  [[ "$cwd" == "$APP_ROOT" || "$cwd" == "$APP_ROOT/artifacts/api-server" ]] \
+    || return 1
   command="$(pid_command "$pid")"
   [[ "$command" == *"@workspace/api-server"* ]] \
     || [[ "$command" == *"$APP_ROOT/artifacts/api-server/dist/index.mjs"* ]]
@@ -497,6 +498,33 @@ stop_orphaned_app() {
     stop_process_group "$pid"
   fi
   rm -f "$APP_PID_FILE"
+}
+
+listener_pids() {
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null || true
+    return
+  fi
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltnpH 2>/dev/null \
+      | awk -v wanted=":$PORT" '$4 ~ wanted "$"' \
+      | grep -oE 'pid=[0-9]+' \
+      | cut -d= -f2 \
+      | sort -u
+  fi
+}
+
+stop_owned_listeners() {
+  local pid
+  while read -r pid; do
+    [[ -n "$pid" ]] || continue
+    if pid_is_managed_app "$pid"; then
+      echo "Stopping this application's listener process (PID $pid)."
+      stop_process_group "$pid"
+    else
+      fail "Refusing to stop listener PID $pid because it is not owned by this application."
+    fi
+  done < <(listener_pids)
 }
 
 restart_owned_processes() {
@@ -520,6 +548,7 @@ restart_owned_processes() {
   fi
 
   stop_orphaned_app
+  stop_owned_listeners
 }
 
 stop_owned_supervisor() {
