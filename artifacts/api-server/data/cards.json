@@ -34,5 +34,14 @@
     "imageFile": "81f0659d-8642-4657-9af8-c3e4c55a60eb.jpg",
     "createdAt": "2026-09-22T21:35:42.177Z",
     "updatedAt": "2026-09-22T21:35:42.177Z"
+  },
+  {
+    "id": "b9149d55-f914-4488-b3a3-54ab7517d902",
+    "title": "Poppy",
+    "category": "Pets",
+    "imageUrl": "/api/cards/images/b9149d55-f914-4488-b3a3-54ab7517d902.jpg",
+    "imageFile": "b9149d55-f914-4488-b3a3-54ab7517d902.jpg",
+    "createdAt": "2026-09-23T05:28:08.288Z",
+    "updatedAt": "2026-09-23T05:28:08.288Z"
   }
 ]

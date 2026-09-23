@@ -238,7 +238,7 @@ export default function Playback() {
                 onLoad={() => setLoadedPlaybackKey(`${playbackCard.id}:${playbackToken}`)}
                 className={`max-h-[calc(100dvh-10rem)] w-auto max-w-[90vw] shrink-0 rounded-[1.25rem] object-contain shadow-[0_18px_50px_hsl(var(--foreground)/.12)] ${loadedPlaybackKey === `${playbackCard.id}:${playbackToken}` ? '' : 'invisible'}`}
               />
-              {loadedPlaybackKey === `${playbackCard.id}:${playbackToken}` && (
+              {loadedPlaybackKey === `${playbackCard.id}:${playbackToken}` && selectedTextCase !== 'none' && (
                 <FittedSingleLineTitle
                   text={formatCardText(playbackCard.title, selectedTextCase)}
                   level={1}
@@ -311,7 +311,9 @@ export default function Playback() {
                 <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-7">
                   <div>
                     <p className="mb-1 font-mono text-[0.6rem] font-bold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">Picture card</p>
-                    <FittedSingleLineTitle text={formatCardText(card.title, selectedTextCase)} level={2} maxFontSize={40} minFontSize={18} className="max-w-full font-serif font-semibold tracking-[-0.045em]" testId={`text-playback-title-${card.id}`} />
+                    {selectedTextCase !== 'none' && (
+                      <FittedSingleLineTitle text={formatCardText(card.title, selectedTextCase)} level={2} maxFontSize={40} minFontSize={18} className="max-w-full font-serif font-semibold tracking-[-0.045em]" testId={`text-playback-title-${card.id}`} />
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={() => (playing ? setPlaying(false) : startPlayback())} className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-700" data-testid="button-toggle-playback">

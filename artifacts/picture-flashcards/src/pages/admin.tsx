@@ -262,6 +262,7 @@ export default function Admin() {
                 <option value="upper">Upper case</option>
                 <option value="mixed">Mixed case</option>
                 <option value="lower">Lower case</option>
+                <option value="none">No text</option>
               </select>
             </label>
             <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
