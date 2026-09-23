@@ -19,4 +19,4 @@ else
   echo "No Git checkout detected; updating the dependencies and build from the current files."
 fi
 
-exec "$APP_ROOT/install.sh" --use-saved-config
+exec "$APP_ROOT/install.sh" --use-saved-config --restart-owned

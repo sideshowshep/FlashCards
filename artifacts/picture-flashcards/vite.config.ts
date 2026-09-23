@@ -4,16 +4,26 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
+import { cartographer } from '@replit/vite-plugin-cartographer';
+import { devBanner } from '@replit/vite-plugin-dev-banner';
 
-const rawPort = process.env.PORT;
+export default defineConfig(({ command }) => {
+const rawPort = process.env.WEB_PORT
+  ?? process.env.PORT
+  ?? (command === 'build' ? '4173' : undefined);
 
 if (!rawPort) {
   throw new Error(
-    'PORT environment variable is required but was not provided.',
+    'WEB_PORT or PORT environment variable is required for the dev/preview server.',
   );
 }
 
 const port = Number(rawPort);
+const portSource = process.env.WEB_PORT
+  ? 'WEB_PORT'
+  : process.env.PORT
+    ? 'PORT'
+    : 'build-default';
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
@@ -21,6 +31,7 @@ if (Number.isNaN(port) || port <= 0) {
 
 const rawApiPort = process.env.API_PORT;
 const apiPort = rawApiPort ? Number(rawApiPort) : undefined;
+const apiHost = process.env.API_HOST ?? '127.0.0.1';
 
 if (
   rawApiPort
@@ -29,24 +40,24 @@ if (
   throw new Error(`Invalid API_PORT value: "${rawApiPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    'BASE_PATH environment variable is required but was not provided.',
-  );
-}
+const basePath = process.env.BASE_PATH ?? '/';
 
 const apiProxy = apiPort
   ? {
       '/api': {
-        target: `http://127.0.0.1:${apiPort}`,
+        target: `http://${apiHost}:${apiPort}`,
         changeOrigin: false,
       },
     }
   : undefined;
+const webHost = process.env.WEB_HOST
+  ?? (process.env.REPL_ID ? '0.0.0.0' : '127.0.0.1');
 
-export default defineConfig({
+console.info(
+  `[picture-flashcards-web] WEB_HOST=${webHost} source=${process.env.WEB_HOST ? 'environment' : process.env.REPL_ID ? 'replit-default' : 'local-default'} WEB_PORT=${port} source=${portSource} API_LISTENER=${apiPort ? `${apiHost}:${apiPort}` : 'same-origin/unconfigured'}`,
+);
+
+return {
   base: basePath,
   plugins: [
     react(),
@@ -55,14 +66,10 @@ export default defineConfig({
     ...(process.env.NODE_ENV !== 'production' &&
     process.env.REPL_ID !== undefined
       ? [
-          await import('@replit/vite-plugin-cartographer').then((m) =>
-            m.cartographer({
-              root: path.resolve(import.meta.dirname, '..'),
-            }),
-          ),
-          await import('@replit/vite-plugin-dev-banner').then((m) =>
-            m.devBanner(),
-          ),
+          cartographer({
+            root: path.resolve(import.meta.dirname, '..'),
+          }),
+          devBanner(),
         ]
       : []),
   ],
@@ -86,7 +93,7 @@ export default defineConfig({
   server: {
     port,
     strictPort: true,
-    host: '0.0.0.0',
+    host: webHost,
     allowedHosts: true,
     ...(apiProxy ? { proxy: apiProxy } : {}),
     fs: {
@@ -95,8 +102,9 @@ export default defineConfig({
   },
   preview: {
     port,
-    host: '0.0.0.0',
+    host: webHost,
     allowedHosts: true,
     ...(apiProxy ? { proxy: apiProxy } : {}),
   },
+};
 });
