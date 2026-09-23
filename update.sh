@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 APP_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="$APP_ROOT/.picture-flashcards.local.env"
+SERVICE_NAME="picture-flashcards.service"
 
 if [[ ! -f "$CONFIG_FILE" ]]; then
   echo "Update failed: no saved installation was found." >&2
@@ -19,4 +20,10 @@ else
   echo "No Git checkout detected; updating the dependencies and build from the current files."
 fi
 
-exec "$APP_ROOT/install.sh" --use-saved-config --restart-owned
+INSTALL_ARGS=(--use-saved-config --restart-owned)
+if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+  echo "Systemd is running; updates will install and enable $SERVICE_NAME."
+  INSTALL_ARGS+=(--install-service)
+fi
+
+exec "$APP_ROOT/install.sh" "${INSTALL_ARGS[@]}"

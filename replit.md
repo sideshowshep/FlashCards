@@ -76,9 +76,10 @@ for automatic startup and restart:
 `--install-service` writes `/etc/systemd/system/picture-flashcards.service`,
 enables it at boot, and starts it immediately. The service runs as the invoking
 user, restarts after failures, and uses the saved port, host, data directory,
-and built frontend. `./update.sh` preserves systemd management when the service
-is enabled. The launcher never kills an arbitrary process because a port is
-occupied; choose another `--port` instead.
+and built frontend. `./update.sh` preserves systemd management and automatically
+installs and enables the service when run on a device with systemd. The
+launcher never kills an arbitrary process because a port is occupied; choose
+another `--port` instead.
 
 ## Pointers
 

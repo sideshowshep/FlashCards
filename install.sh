@@ -485,7 +485,8 @@ pid_is_managed_app() {
   command="$(pid_command "$pid")"
   [[ "$command" == *"@workspace/api-server"* ]] \
     || [[ "$command" == *"$APP_ROOT/artifacts/api-server/dist/index.mjs"* ]] \
-    || [[ "$cwd" == "$APP_ROOT/artifacts/api-server" && "$command" == *"dist/index.mjs"* ]]
+    || [[ "$command" == *"$APP_ROOT/artifacts/api-server/dist/index.js"* ]] \
+    || [[ "$cwd" == "$APP_ROOT/artifacts/api-server" && "$command" == *"dist/index."* ]]
 }
 
 stop_orphaned_app() {
@@ -523,7 +524,13 @@ stop_owned_listeners() {
       echo "Stopping this application's listener process (PID $pid)."
       stop_process_group "$pid"
     else
-      fail "Refusing to stop listener PID $pid because it is not owned by this application."
+      local owner_cwd
+      local owner_command
+      owner_cwd="$(readlink "/proc/$pid/cwd" 2>/dev/null || echo unavailable)"
+      owner_command="$(pid_command "$pid")"
+      echo "Refusing to stop listener PID $pid because it is not owned by this application." >&2
+      echo "Listener details: cwd=$owner_cwd command=${owner_command:-unavailable}" >&2
+      exit 1
     fi
   done < <(listener_pids)
 }
