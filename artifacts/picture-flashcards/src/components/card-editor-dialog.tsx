@@ -29,6 +29,8 @@ const MIN_CROP_ASPECT = 4 / 5;
 const MAX_CROP_ASPECT = 5 / 4;
 const DEFAULT_CROP_ASPECT = 1;
 const MAX_IMAGE_SIZE_MB = 20;
+const MAX_UPLOAD_EDGE = 1800;
+const UPLOAD_JPEG_QUALITY = 0.84;
 
 function readAsDataUrl(blob: Blob) {
   return new Promise<string>((resolve, reject) => {
@@ -39,6 +41,48 @@ function readAsDataUrl(blob: Blob) {
     };
     reader.onerror = () => reject(new Error('The image could not be read.'));
     reader.readAsDataURL(blob);
+  });
+}
+
+function resizeImageForUpload(blob: Blob) {
+  return new Promise<Blob>((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(blob);
+    const image = new Image();
+
+    const cleanup = () => {
+      URL.revokeObjectURL(objectUrl);
+      image.onload = null;
+      image.onerror = null;
+    };
+
+    image.onload = () => {
+      const longestEdge = Math.max(image.naturalWidth, image.naturalHeight);
+      const scale = Math.min(1, MAX_UPLOAD_EDGE / longestEdge);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+      const context = canvas.getContext('2d');
+      if (!context) {
+        cleanup();
+        reject(new Error('The image could not be prepared.'));
+        return;
+      }
+
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((result) => {
+        cleanup();
+        if (result) resolve(result);
+        else reject(new Error('The image could not be prepared.'));
+      }, 'image/jpeg', UPLOAD_JPEG_QUALITY);
+    };
+    image.onerror = () => {
+      cleanup();
+      reject(new Error('The image could not be read.'));
+    };
+    image.src = objectUrl;
   });
 }
 
@@ -152,7 +196,8 @@ export function CardEditorDialog({ open, card, onClose, onSaved, page = false }:
         const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
         previewBlob = Array.isArray(converted) ? converted[0] : converted;
       }
-      const result = await readAsDataUrl(previewBlob);
+      const resizedBlob = await resizeImageForUpload(previewBlob);
+      const result = await readAsDataUrl(resizedBlob);
       setImageData(result);
       setPreviewUrl(result);
       setError('');
@@ -324,7 +369,7 @@ export function CardEditorDialog({ open, card, onClose, onSaved, page = false }:
                 >
                   <ImagePlus size={26} strokeWidth={1.5} className="text-[hsl(var(--primary))]" />
                   <span className="font-medium text-[hsl(var(--foreground))]">Choose a clear, real picture</span>
-                  <span className="text-xs text-[hsl(var(--muted-foreground))]">JPG, PNG, WEBP, or HEIC · up to 20 MB</span>
+                  <span className="text-xs text-[hsl(var(--muted-foreground))]">JPG, PNG, WEBP, or HEIC · up to 20 MB · optimized before upload</span>
                 </button>
               )}
               {(previewUrl || imageData) && (
