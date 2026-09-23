@@ -28,6 +28,7 @@ type CardEditorDialogProps = {
 const MIN_CROP_ASPECT = 4 / 5;
 const MAX_CROP_ASPECT = 5 / 4;
 const DEFAULT_CROP_ASPECT = 1;
+const MAX_IMAGE_SIZE_MB = 20;
 
 function readAsDataUrl(blob: Blob) {
   return new Promise<string>((resolve, reject) => {
@@ -138,8 +139,8 @@ export function CardEditorDialog({ open, card, onClose, onSaved, page = false }:
       setError('Choose an image file to continue.');
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      setError('That image is larger than 8 MB. Choose a smaller one.');
+    if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+      setError(`That image is larger than ${MAX_IMAGE_SIZE_MB} MB. Choose a smaller one.`);
       return;
     }
     setFileLabel(file.name);
@@ -323,7 +324,7 @@ export function CardEditorDialog({ open, card, onClose, onSaved, page = false }:
                 >
                   <ImagePlus size={26} strokeWidth={1.5} className="text-[hsl(var(--primary))]" />
                   <span className="font-medium text-[hsl(var(--foreground))]">Choose a clear, real picture</span>
-                  <span className="text-xs text-[hsl(var(--muted-foreground))]">JPG, PNG, WEBP, or HEIC · up to 8 MB</span>
+                  <span className="text-xs text-[hsl(var(--muted-foreground))]">JPG, PNG, WEBP, or HEIC · up to 20 MB</span>
                 </button>
               )}
               {(previewUrl || imageData) && (
