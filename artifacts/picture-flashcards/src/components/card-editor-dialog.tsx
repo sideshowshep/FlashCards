@@ -57,10 +57,13 @@ function resizeImageForUpload(blob: Blob) {
 
     image.onload = () => {
       const longestEdge = Math.max(image.naturalWidth, image.naturalHeight);
-      const scale = Math.min(1, MAX_UPLOAD_EDGE / longestEdge);
+      const outputEdge = Math.min(MAX_UPLOAD_EDGE, longestEdge);
+      const scale = outputEdge / longestEdge;
+      const imageWidth = Math.max(1, Math.round(image.naturalWidth * scale));
+      const imageHeight = Math.max(1, Math.round(image.naturalHeight * scale));
       const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      canvas.width = outputEdge;
+      canvas.height = outputEdge;
 
       const context = canvas.getContext('2d');
       if (!context) {
@@ -71,7 +74,13 @@ function resizeImageForUpload(blob: Blob) {
 
       context.fillStyle = '#ffffff';
       context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      context.drawImage(
+        image,
+        (outputEdge - imageWidth) / 2,
+        (outputEdge - imageHeight) / 2,
+        imageWidth,
+        imageHeight,
+      );
       canvas.toBlob((result) => {
         cleanup();
         if (result) resolve(result);
@@ -310,73 +319,75 @@ export function CardEditorDialog({ open, card, onClose, onSaved, page = false }:
             <label className="mb-2 block font-mono text-[0.66rem] font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]" htmlFor="card-image">
               Picture
             </label>
-            <div className="group relative flex min-h-80 w-full items-center justify-center overflow-hidden rounded-[18px] border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--muted)/.65)] text-left transition-colors hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent)/.12)]">
-              {previewUrl && imageData ? (
-                <ReactCrop
-                  crop={crop}
-                  onChange={(_, percentCrop: PercentCrop) => setCrop(clampCropAspect(percentCrop, imageRef.current))}
-                  onComplete={(_, percentCrop: PercentCrop) => setCrop(clampCropAspect(percentCrop, imageRef.current))}
-                  keepSelection
-                  minWidth={60}
-                  minHeight={75}
-                  className="max-h-[52dvh] max-w-full"
-                  data-testid="image-crop-tool"
-                >
-                  <img
-                    ref={imageRef}
-                    src={previewUrl}
-                    alt="Select the part of the picture to keep"
-                    className="block max-h-[52dvh] max-w-full object-contain"
-                    onLoad={(event) => {
-                      const { width, height } = event.currentTarget;
-                      setCrop(
-                        centerCrop(
-                          makeAspectCrop(
-                            { unit: '%', width: 80 },
-                            DEFAULT_CROP_ASPECT,
+            <div className="group relative flex min-h-80 w-full flex-col overflow-hidden rounded-[18px] border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--muted)/.65)] text-left transition-colors hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent)/.12)]">
+              <div className="relative flex min-h-80 w-full flex-1 items-center justify-center overflow-hidden">
+                {previewUrl && imageData ? (
+                  <ReactCrop
+                    crop={crop}
+                    onChange={(_, percentCrop: PercentCrop) => setCrop(clampCropAspect(percentCrop, imageRef.current))}
+                    onComplete={(_, percentCrop: PercentCrop) => setCrop(clampCropAspect(percentCrop, imageRef.current))}
+                    keepSelection
+                    minWidth={60}
+                    minHeight={75}
+                    className="max-h-[52dvh] max-w-full"
+                    data-testid="image-crop-tool"
+                  >
+                    <img
+                      ref={imageRef}
+                      src={previewUrl}
+                      alt="Select the part of the picture to keep"
+                      className="block max-h-[52dvh] max-w-full object-contain"
+                      onLoad={(event) => {
+                        const { width, height } = event.currentTarget;
+                        setCrop(
+                          centerCrop(
+                            makeAspectCrop(
+                              { unit: '%', width: 80 },
+                              DEFAULT_CROP_ASPECT,
+                              width,
+                              height,
+                            ),
                             width,
                             height,
                           ),
-                          width,
-                          height,
-                        ),
-                      );
-                    }}
+                        );
+                      }}
+                      data-testid="img-card-preview"
+                    />
+                  </ReactCrop>
+                ) : previewUrl ? (
+                  <img
+                    ref={imageRef}
+                    src={previewUrl}
+                    alt="Selected card preview"
+                    className="max-h-[52dvh] max-w-full object-contain"
                     data-testid="img-card-preview"
                   />
-                </ReactCrop>
-              ) : previewUrl ? (
-                <img
-                  ref={imageRef}
-                  src={previewUrl}
-                  alt="Selected card preview"
-                  className="max-h-[52dvh] max-w-full object-contain"
-                  data-testid="img-card-preview"
-                />
-              ) : imageData ? (
-                <div className="flex min-h-80 flex-col items-center justify-center gap-2 px-6 text-center">
-                  <ImagePlus size={26} strokeWidth={1.5} className="text-[hsl(var(--primary))]" />
-                  <span className="font-medium text-[hsl(var(--foreground))]">HEIC image ready</span>
-                  <span className="max-w-xs text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{fileLabel || 'The server will convert this image for playback.'}</span>
-                  <span className="rounded-full bg-[hsl(var(--foreground)/.08)] px-3 py-1 font-mono text-[0.58rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--muted-foreground))]">Converted when saved</span>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex min-h-80 w-full flex-col items-center justify-center gap-2 text-center"
-                  data-testid="button-upload-image"
-                >
-                  <ImagePlus size={26} strokeWidth={1.5} className="text-[hsl(var(--primary))]" />
-                  <span className="font-medium text-[hsl(var(--foreground))]">Choose a clear, real picture</span>
-                  <span className="text-xs text-[hsl(var(--muted-foreground))]">JPG, PNG, WEBP, or HEIC · up to 20 MB · optimized before upload</span>
-                </button>
-              )}
+                ) : imageData ? (
+                  <div className="flex min-h-80 flex-col items-center justify-center gap-2 px-6 text-center">
+                    <ImagePlus size={26} strokeWidth={1.5} className="text-[hsl(var(--primary))]" />
+                    <span className="font-medium text-[hsl(var(--foreground))]">HEIC image ready</span>
+                    <span className="max-w-xs text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{fileLabel || 'The server will convert this image for playback.'}</span>
+                    <span className="rounded-full bg-[hsl(var(--foreground)/.08)] px-3 py-1 font-mono text-[0.58rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--muted-foreground))]">Converted when saved</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex min-h-80 w-full flex-col items-center justify-center gap-2 text-center"
+                    data-testid="button-upload-image"
+                  >
+                    <ImagePlus size={26} strokeWidth={1.5} className="text-[hsl(var(--primary))]" />
+                    <span className="font-medium text-[hsl(var(--foreground))]">Choose a clear, real picture</span>
+                    <span className="text-xs text-[hsl(var(--muted-foreground))]">JPG, PNG, WEBP, or HEIC · up to 20 MB · optimized before upload</span>
+                  </button>
+                )}
+              </div>
               {(previewUrl || imageData) && (
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-3 right-3 rounded-full bg-[hsl(var(--foreground)/.78)] px-3 py-1.5 font-mono text-[0.6rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--card))]"
+                  className="m-3 self-end rounded-full bg-[hsl(var(--foreground)/.78)] px-3 py-1.5 font-mono text-[0.6rem] font-bold uppercase tracking-[0.12em] text-[hsl(var(--card))] transition-colors hover:bg-[hsl(var(--foreground))]"
                   data-testid="button-replace-image"
                 >
                   Replace image
