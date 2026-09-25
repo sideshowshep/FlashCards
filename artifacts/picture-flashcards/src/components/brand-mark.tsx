@@ -21,14 +21,9 @@ export function BrandMark({ to = '/', compact = false }: BrandMarkProps) {
         />
       </span>
       {!compact && (
-        <span className="leading-[0.95]">
-          <span className="block font-serif text-[1.35rem] font-semibold tracking-[-0.035em] text-[hsl(var(--foreground))]">
-            Flash
+        <span className="font-serif text-[1.35rem] font-semibold tracking-[-0.035em] text-[hsl(var(--foreground))]">
+          Flash Cards
           </span>
-          <span className="block font-mono text-[0.58rem] font-bold uppercase tracking-[0.24em] text-[hsl(var(--muted-foreground))]">
-            Cards
-          </span>
-        </span>
       )}
     </Link>
   );
