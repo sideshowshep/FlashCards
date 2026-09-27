@@ -22,7 +22,7 @@ export function BrandMark({ to = '/', compact = false }: BrandMarkProps) {
       </span>
       {!compact && (
         <span className="font-serif text-[1.35rem] font-semibold tracking-[-0.035em] text-[hsl(var(--foreground))]">
-          Flash Cards
+          FlashCards
           </span>
       )}
     </Link>
