@@ -40,7 +40,7 @@ router.get("/cards/images/:filename", async (req, res, next) => {
     const image = await readFile(imagePath);
     res
       .type("image/jpeg")
-      .set("Cache-Control", "no-cache")
+      .set("Cache-Control", "public, max-age=31536000, immutable")
       .send(image);
   } catch (error) {
     next(error);

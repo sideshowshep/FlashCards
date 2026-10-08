@@ -5,6 +5,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import net from "node:net";
+import sharp from "sharp";
 import test from "node:test";
 
 const packageRoot = path.resolve(import.meta.dirname, "..");
@@ -100,7 +101,23 @@ test.after(async () => {
 
 test("rejects occupied ports without affecting the existing listener and shuts down cleanly", async () => {
   const port = await getFreePort();
-  const first = startApi(port, path.join(testDataRoot, "first"));
+  const firstDataRoot = path.join(testDataRoot, "first");
+  const imageFile = "cache-test.jpg";
+  const testImage = await sharp({
+    create: {
+      width: 8,
+      height: 8,
+      channels: 3,
+      background: "#e5533d",
+    },
+  }).jpeg().toBuffer();
+  await mkdir(path.join(firstDataRoot, "images"), { recursive: true });
+  await writeFile(path.join(firstDataRoot, "images", imageFile), testImage);
+  await writeFile(
+    path.join(firstDataRoot, "cards.json"),
+    JSON.stringify([{ imageFile }]),
+  );
+  const first = startApi(port, firstDataRoot);
   let second;
 
   try {
@@ -118,6 +135,22 @@ test("rejects occupied ports without affecting the existing listener and shuts d
     const asset = await fetch(`http://127.0.0.1:${port}/asset.txt`);
     assert.equal(asset.status, 200);
     assert.equal(await asset.text(), "static-asset");
+
+    const imageResponse = await fetch(
+      `http://127.0.0.1:${port}/api/cards/images/${imageFile}`,
+    );
+    assert.equal(imageResponse.status, 200);
+    assert.match(imageResponse.headers.get("content-type") ?? "", /image\/jpeg/);
+    assert.equal(
+      imageResponse.headers.get("cache-control"),
+      "public, max-age=31536000, immutable",
+    );
+    const imageBytes = Buffer.from(await imageResponse.arrayBuffer());
+    assert.ok(imageBytes.length > 0);
+    assert.equal(
+      Number(imageResponse.headers.get("content-length")),
+      imageBytes.length,
+    );
 
     const missingApiRoute = await fetch(
       `http://127.0.0.1:${port}/api/does-not-exist`,

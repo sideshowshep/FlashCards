@@ -22,6 +22,49 @@ function categoryKey(category: string | null | undefined) {
 const UNCATEGORISED_CATEGORY_KEY = '__uncategorised__';
 const UNCATEGORISED_LABEL = 'Uncategorised';
 
+function CatalogueThumbnail({
+  src,
+  muted,
+  testId,
+}: {
+  src: string;
+  muted: boolean;
+  testId: string;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const [failed, setFailed] = useState(false);
+  const imageSrc = retry === 0
+    ? src
+    : `${src}${src.includes('?') ? '&' : '?'}preview-retry=${retry}`;
+
+  const retryOrFail = () => {
+    if (retry < 1) setRetry(retry + 1);
+    else setFailed(true);
+  };
+
+  return (
+    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[hsl(var(--muted))] sm:h-20 sm:w-20">
+      {!failed && (
+        <img
+          src={imageSrc}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onLoad={(event) => {
+            void event.currentTarget.decode()
+              .then(() => setLoaded(true))
+              .catch(retryOrFail);
+          }}
+          onError={retryOrFail}
+          data-testid={testId}
+          className={`h-full w-full object-cover transition-[filter,opacity,transform] duration-300 group-hover:scale-[1.04] ${loaded ? (muted ? 'opacity-40' : 'opacity-100') : 'opacity-0'} ${muted ? 'saturate-0' : ''}`}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function Admin() {
   const queryClient = useQueryClient();
   const [deleteTarget, setDeleteTarget] = useState<Card | null>(null);
@@ -242,9 +285,12 @@ export default function Admin() {
                                 data-testid={`card-catalogue-${card.id}`}
                               >
                                 <button type="button" onClick={(event) => { event.stopPropagation(); setDeleteTarget(card); setDeleteError(''); }} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-[hsl(var(--destructive))] transition-colors hover:bg-[hsl(var(--destructive)/.1)]" aria-label={`Delete ${card.title}`} data-testid={`button-delete-card-${card.id}`}><Trash2 size={19} /></button>
-                                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[hsl(var(--muted))] sm:h-20 sm:w-20">
-                                <img src={card.imageUrl} alt="" className={`h-full w-full object-cover transition-[filter,opacity,transform] duration-300 group-hover:scale-[1.04] ${card.isVisible ? '' : 'saturate-0 opacity-40'}`} data-testid={`img-catalogue-${card.id}`} />
-                                </div>
+                                <CatalogueThumbnail
+                                  key={card.imageUrl}
+                                  src={card.imageUrl}
+                                  muted={!card.isVisible}
+                                  testId={`img-catalogue-${card.id}`}
+                                />
                                 <h3 className={`min-w-0 flex-1 truncate font-serif text-xl font-semibold tracking-[-0.035em] ${card.isVisible ? 'text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))] opacity-70'}`} data-testid={`text-card-title-${card.id}`}>{card.title}</h3>
                                 <button
                                   type="button"

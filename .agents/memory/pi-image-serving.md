@@ -14,3 +14,15 @@ The Pi updater must also clear listeners on the configured frontend and API port
 **Why:** The Pi had the new source and bundle but continued to log the old `sendFile` handler; the new frontend process also failed because port 5016 was already occupied.
 
 **How to apply:** During installation or update, stop any listeners on the app-owned ports after PID-file cleanup and before starting rebuilt services.
+
+Image URLs should be treated as immutable cache keys: replacing an image must
+create a new filename rather than overwrite the existing file. Long-lived
+browser caching reduces repeat downloads and avoids re-fetching full-size images
+for every catalogue visit on mobile connections.
+
+**Why:** The catalogue is image-heavy and the Raspberry Pi serves the images
+directly. Reusing a URL for changed image bytes would make `immutable` caching
+show stale previews.
+
+**How to apply:** Use a fresh image filename whenever a card image changes, and
+serve those URLs with a long-lived immutable cache policy.
