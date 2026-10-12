@@ -3,12 +3,14 @@ set -Eeuo pipefail
 
 APP_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 APPLICATION_NAME="picture-flashcards"
-CONFIG_FILE="$APP_ROOT/.picture-flashcards.local.env"
 RUNTIME_DIR="$APP_ROOT/.picture-flashcards-runtime"
 LOG_DIR="$RUNTIME_DIR/logs"
 SUPERVISOR_PID_FILE="$RUNTIME_DIR/supervisor.pid"
 APP_PID_FILE="$RUNTIME_DIR/app.pid"
-DATA_DIR="$APP_ROOT/.picture-flashcards-data"
+DATA_DIR="/var/lib/picture-flashcards"
+CONFIG_FILE="$DATA_DIR/picture-flashcards.env"
+LEGACY_CONFIG_FILE="$APP_ROOT/.picture-flashcards.local.env"
+LEGACY_DATA_DIR="$APP_ROOT/.picture-flashcards-data"
 STATIC_DIR="$APP_ROOT/artifacts/picture-flashcards/dist/public"
 SERVICE_NAME="picture-flashcards.service"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME"
@@ -39,10 +41,9 @@ usage() {
 Usage:
   ./install.sh [options]
 
-Install and run Picture Flashcards. By default this uses a foreground
-supervisor; --install-service uses systemd so the app starts after reboot and
-restarts after failures. The Express server serves both the frontend and /api
-from one listener.
+Install and prepare Picture Flashcards. Installation builds the production app
+and enables its systemd service, but does not start it. Use ./start.sh to start.
+The Express server serves both the frontend and /api from one listener.
 
 Options:
   --port PORT, --app-port PORT, --web-port PORT
@@ -50,14 +51,15 @@ Options:
   --instance NAME
   --use-saved-config       Reuse the saved configuration.
   --restart-owned          Stop this app's own supervisor before rebuilding.
-  --install-service        Install, enable, and start the systemd service.
+  --install-service        Compatibility option; enable the systemd service.
   --uninstall-service      Disable and remove the systemd service.
   --service                Internal systemd foreground service mode.
+  --start                  Internal start.sh entry point.
   --print-effective-config Print configuration and exit.
   --check                  Validate configuration and port ownership, then exit.
   --status                 Show this app's process and listener status.
   --logs                   Show the most recent application logs.
-  --stop                   Stop this app's own supervisor only.
+  --stop                   Stop this application's managed processes.
   --help
 
 Configuration precedence is command line, environment, saved configuration,
@@ -107,7 +109,9 @@ read_saved_config() {
   SAVED_PORT=""
   SAVED_HOST=""
   SAVED_INSTANCE_NAME=""
-  [[ -f "$CONFIG_FILE" ]] || return 0
+  local source="$CONFIG_FILE"
+  [[ -f "$source" ]] || source="$LEGACY_CONFIG_FILE"
+  [[ -f "$source" ]] || return 0
 
   local key value
   while IFS='=' read -r key value; do
@@ -120,9 +124,13 @@ read_saved_config() {
         # Accept the previous two-port config during migration, but do not use it.
         ;;
       ""|\#*) ;;
-      *) fail "Unknown setting in $CONFIG_FILE: $key" ;;
+      *) ;;
     esac
-  done < "$CONFIG_FILE"
+  done < "$source"
+}
+
+saved_config_exists() {
+  [[ -f "$CONFIG_FILE" || -f "$LEGACY_CONFIG_FILE" ]]
 }
 
 parse_args() {
@@ -152,6 +160,13 @@ parse_args() {
         ;;
       --restart-owned)
         RESTART_OWNED=true
+        shift
+        ;;
+      --start)
+        COMMAND="start"
+        shift
+        ;;
+      --no-start)
         shift
         ;;
       --install-service|--enable-service)
@@ -201,22 +216,18 @@ parse_args() {
 choose_config() {
   read_saved_config
 
-  if [[ "$COMMAND" == "service" && ! -f "$CONFIG_FILE" ]]; then
+  if [[ "$COMMAND" == "service" ]] && ! saved_config_exists; then
     fail "Cannot run the systemd service: no saved configuration exists. Run ./install.sh --port PORT --install-service first."
   fi
 
-  if [[ "$USE_SAVED_CONFIG" == true && ! -f "$CONFIG_FILE" ]]; then
+  if [[ "$USE_SAVED_CONFIG" == true ]] && ! saved_config_exists; then
     fail "No saved configuration exists. Run ./install.sh first."
   fi
 
   PORT="${CLI_PORT:-${ENV_PORT:-${SAVED_PORT:-}}}"
   if [[ -z "$PORT" ]]; then
-    if [[ "$COMMAND" == "install" && -t 0 ]]; then
-      read -r -p "Application port [$DEFAULT_PORT]: " PORT
-    else
-      PORT="$DEFAULT_PORT"
-      [[ "$COMMAND" == "install" ]] && echo "No interactive terminal; using application port $PORT."
-    fi
+    PORT="$DEFAULT_PORT"
+    [[ "$COMMAND" == "install" ]] && echo "No port was configured; using application port $PORT."
   fi
 
   HOST="${CLI_HOST:-${ENV_HOST:-${SAVED_HOST:-$DEFAULT_HOST}}}"
@@ -234,24 +245,26 @@ ensure_runtime() {
   node_major="$(node -p 'process.versions.node.split(".")[0]')"
   (( node_major >= 20 )) || fail "Node.js 20 or newer is required; found $(node --version)."
 
-  if command -v pnpm >/dev/null 2>&1; then
-    PNPM_CMD=(pnpm)
-  elif command -v corepack >/dev/null 2>&1; then
+  if command -v corepack >/dev/null 2>&1; then
     PNPM_CMD=(corepack pnpm)
+  elif command -v pnpm >/dev/null 2>&1; then
+    PNPM_CMD=(pnpm)
+  elif command -v npm >/dev/null 2>&1; then
+    echo "Installing the lockfile-pinned pnpm version..."
+    privileged_run npm install --global pnpm@10.26.1
+    PNPM_CMD=(pnpm)
   else
-    fail "pnpm or Corepack is required."
+    fail "npm, pnpm, or Corepack is required."
   fi
-
-  command -v setsid >/dev/null 2>&1 || fail "setsid is required to manage application process groups."
 }
 
 systemd_run() {
   if (( EUID == 0 )); then
-    systemctl "$@"
+    timeout 90 systemctl "$@"
     return
   fi
   command -v sudo >/dev/null 2>&1 || fail "sudo is required to manage $SERVICE_NAME."
-  sudo systemctl "$@"
+  timeout 90 sudo systemctl "$@"
 }
 
 privileged_run() {
@@ -265,6 +278,53 @@ privileged_run() {
 
 systemd_available() {
   command -v systemctl >/dev/null 2>&1
+}
+
+apt_run() {
+  if (( EUID == 0 )); then
+    timeout 900 env DEBIAN_FRONTEND=noninteractive apt-get "$@"
+  else
+    command -v sudo >/dev/null 2>&1 || fail "sudo is required to install system packages."
+    timeout 900 sudo env DEBIAN_FRONTEND=noninteractive apt-get "$@"
+  fi
+}
+
+prepare_system_toolchain() {
+  [[ -r /etc/os-release ]] || fail "Cannot identify this Linux distribution."
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  [[ "${ID:-}" == debian || "${ID:-}" == ubuntu || "${ID:-}" == raspbian ]] \
+    || fail "The installer supports Debian, Ubuntu, and Raspberry Pi OS. Found: ${PRETTY_NAME:-unknown}."
+  command -v apt-get >/dev/null 2>&1 \
+    || fail "apt-get is required on supported Debian-family systems."
+
+  echo "Installing required Debian-family system tools..."
+  apt_run update
+  apt_run install -y ca-certificates curl gnupg git build-essential python3 iproute2 lsof
+
+  local node_major=0
+  if command -v node >/dev/null 2>&1; then
+    node_major="$(node -p 'process.versions.node.split(".")[0]')"
+  fi
+  if (( node_major < 20 )); then
+    echo "Installing Node.js 22 from the signed NodeSource apt repository..."
+    local key_source keyring_source repo_source architecture
+    key_source="$(mktemp)"
+    keyring_source="$(mktemp)"
+    repo_source="$(mktemp)"
+    curl --connect-timeout 20 --max-time 120 -fsSL \
+      https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key -o "$key_source"
+    gpg --dearmor < "$key_source" > "$keyring_source"
+    privileged_run install -d -m 0755 /etc/apt/keyrings
+    privileged_run install -m 0644 "$keyring_source" /etc/apt/keyrings/nodesource.gpg
+    architecture="$(dpkg --print-architecture)"
+    printf 'deb [arch=%s signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main\n' \
+      "$architecture" > "$repo_source"
+    privileged_run install -m 0644 "$repo_source" /etc/apt/sources.list.d/nodesource.list
+    rm -f "$key_source" "$keyring_source" "$repo_source"
+    apt_run update
+    apt_run install -y nodejs
+  fi
 }
 
 systemd_service_enabled() {
@@ -318,13 +378,47 @@ fail_if_port_in_use() {
 
 write_config() {
   umask 077
-  cat > "$CONFIG_FILE" <<EOF
-# Generated by install.sh. Do not add shell commands to this file.
+  local temp_file="$CONFIG_FILE.tmp.$$"
+  if [[ -f "$CONFIG_FILE" ]]; then
+    awk -v port="$PORT" -v host="$HOST" -v instance="$INSTANCE_NAME" '
+      BEGIN { seen_port=0; seen_app_port=0; seen_host=0; seen_instance=0 }
+      /^PORT=/ { if (!seen_port++) print "PORT=" port; next }
+      /^APP_PORT=/ { if (!seen_app_port++) print "APP_PORT=" port; next }
+      /^HOST=/ { if (!seen_host++) print "HOST=" host; next }
+      /^INSTANCE_NAME=/ { if (!seen_instance++) print "INSTANCE_NAME=" instance; next }
+      { print }
+      END {
+        if (!seen_port) print "PORT=" port
+        if (!seen_app_port) print "APP_PORT=" port
+        if (!seen_host) print "HOST=" host
+        if (!seen_instance) print "INSTANCE_NAME=" instance
+      }
+    ' "$CONFIG_FILE" > "$temp_file"
+  else
+    cat > "$temp_file" <<EOF
+# Generated by install.sh. Local environment values are preserved on updates.
 PORT=$PORT
 APP_PORT=$PORT
 HOST=$HOST
 INSTANCE_NAME=$INSTANCE_NAME
 EOF
+  fi
+  chmod 0600 "$temp_file"
+  mv -f "$temp_file" "$CONFIG_FILE"
+}
+
+prepare_persistent_storage() {
+  local storage_user="${SUDO_USER:-$(id -un)}"
+  local storage_group
+  storage_group="$(id -gn "$storage_user")"
+  privileged_run install -d -o "$storage_user" -g "$storage_group" -m 0750 "$DATA_DIR"
+
+  if [[ ! -f "$CONFIG_FILE" && -f "$LEGACY_CONFIG_FILE" ]]; then
+    cp -p "$LEGACY_CONFIG_FILE" "$CONFIG_FILE"
+  fi
+
+  bash "$APP_ROOT/scripts/migrate-persistent-data.sh" "$LEGACY_DATA_DIR" "$DATA_DIR"
+  privileged_run chown -R "$storage_user:$storage_group" "$DATA_DIR"
 }
 
 write_systemd_unit() {
@@ -365,10 +459,18 @@ Restart=on-failure
 RestartSec=5
 KillSignal=SIGTERM
 TimeoutStopSec=30
+KillMode=control-group
+SendSIGKILL=yes
+FinalKillSignal=SIGKILL
 
 [Install]
 WantedBy=multi-user.target
 EOF
+
+  command -v systemd-analyze >/dev/null 2>&1 \
+    || fail "systemd-analyze is required to validate $SERVICE_NAME."
+  systemd-analyze verify "$unit_source" \
+    || fail "Generated systemd unit failed validation: $unit_source"
 
   privileged_run install -o "$service_user" -g "$service_group" -m 0644 \
     "$unit_source" "$SERVICE_FILE"
@@ -378,8 +480,8 @@ EOF
 install_systemd_service() {
   write_systemd_unit
   systemd_run daemon-reload
-  systemd_run enable --now "$SERVICE_NAME"
-  echo "Enabled $SERVICE_NAME; it will start after reboot and restart after failures."
+  systemd_run enable "$SERVICE_NAME"
+  echo "Enabled $SERVICE_NAME for boot; installation did not start the application."
 }
 
 remove_systemd_service() {
@@ -595,10 +697,36 @@ handle_signal() {
 stop_application() {
   if systemd_service_active; then
     systemd_run stop "$SERVICE_NAME"
+    systemd_service_active && fail "Could not confirm that $SERVICE_NAME stopped."
+    restart_owned_processes
     echo "Stopped $APPLICATION_NAME systemd service."
     return 0
   fi
-  stop_owned_supervisor
+  restart_owned_processes
+}
+
+start_systemd_service() {
+  [[ -f "$CONFIG_FILE" ]] || fail "No saved installation. Run ./install.sh first."
+  [[ -f "$APP_ROOT/artifacts/api-server/dist/index.mjs" ]] \
+    || fail "Production API build is missing. Run ./install.sh first."
+  [[ -f "$STATIC_DIR/index.html" ]] \
+    || fail "Production frontend build is missing. Run ./install.sh first."
+  [[ -f "$SERVICE_FILE" ]] || fail "$SERVICE_NAME is not installed. Run ./install.sh first."
+  require_systemd
+  if systemd_service_active; then
+    wait_for_health || fail "$SERVICE_NAME is active but the application is not ready."
+    echo "$SERVICE_NAME is already running and healthy."
+    return 0
+  fi
+  restart_owned_processes
+  check_port
+  systemd_run start "$SERVICE_NAME"
+  systemd_service_active || fail "$SERVICE_NAME did not remain active after start."
+  wait_for_health || {
+    systemd_run stop "$SERVICE_NAME" || true
+    fail "The service failed readiness checks. Inspect it with: journalctl -u $SERVICE_NAME"
+  }
+  echo "Started $SERVICE_NAME and verified application readiness."
 }
 
 show_logs() {
@@ -615,17 +743,17 @@ show_logs() {
 install_dependencies_and_build() {
   cd "$APP_ROOT"
   echo "Installing workspace dependencies locally..."
-  "${PNPM_CMD[@]}" install --frozen-lockfile
+  timeout 1800 "${PNPM_CMD[@]}" install --frozen-lockfile
   echo "Building shared workspace libraries..."
-  "${PNPM_CMD[@]}" run typecheck:libs
+  timeout 900 "${PNPM_CMD[@]}" run typecheck:libs
   echo "Checking the API and frontend..."
-  "${PNPM_CMD[@]}" --filter @workspace/api-server run typecheck
-  "${PNPM_CMD[@]}" --filter @workspace/picture-flashcards run typecheck
+  timeout 900 "${PNPM_CMD[@]}" --filter @workspace/api-server run typecheck
+  timeout 900 "${PNPM_CMD[@]}" --filter @workspace/picture-flashcards run typecheck
   echo "Building the frontend..."
   WEB_PORT="$PORT" WEB_HOST="$HOST" BASE_PATH=/ \
-    "${PNPM_CMD[@]}" --filter @workspace/picture-flashcards run build
+    timeout 1200 "${PNPM_CMD[@]}" --filter @workspace/picture-flashcards run build
   echo "Building the API..."
-  "${PNPM_CMD[@]}" --filter @workspace/api-server run build
+  timeout 1200 "${PNPM_CMD[@]}" --filter @workspace/api-server run build
 }
 
 start_managed_app() {
@@ -756,6 +884,9 @@ main() {
     stop)
       stop_application
       ;;
+    start)
+      start_systemd_service
+      ;;
     service-remove)
       remove_systemd_service
       ;;
@@ -764,8 +895,9 @@ main() {
       run_systemd_service
       ;;
     install)
+      require_systemd
+      prepare_system_toolchain
       ensure_runtime
-      [[ "$SYSTEMD_ACTION" != "install" ]] || require_systemd
       if systemd_service_active || systemd_service_enabled; then
         SYSTEMD_WAS_MANAGED=true
         if systemd_service_active; then
@@ -782,16 +914,10 @@ main() {
         fail "This application is already running. Use --restart-owned only when restarting this application's own supervisor."
       fi
       check_port
+      prepare_persistent_storage
       write_config
       install_dependencies_and_build
-      if [[ "$SYSTEMD_ACTION" == "install" ]]; then
-        install_systemd_service
-      elif [[ "$SYSTEMD_WAS_MANAGED" == true ]]; then
-        systemd_run start "$SERVICE_NAME"
-        echo "Restarted $SERVICE_NAME."
-      else
-        run_supervisor
-      fi
+      install_systemd_service
       ;;
   esac
 }

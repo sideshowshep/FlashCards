@@ -30,3 +30,16 @@ then blocks a safe update.
 **How to apply:** Use ownership checks based on the app path and API command,
 ignore zombie PIDs, and refuse to stop any process that cannot be positively
 identified as Picture Flashcards.
+
+Production card data and its local environment configuration live under
+`/var/lib/picture-flashcards`; `pifactory.json` must name the same absolute
+directory. Keep development data separate, and migrate legacy Pi data by
+copying and verifying it without deleting the original.
+
+**Why:** Updates replace source and build output, while catalogue data and
+configuration must survive those changes and remain writable by the service
+user.
+
+**How to apply:** Pass this directory as `FLASHCARDS_DATA_DIR` in production
+and keep `cards.json`, uploaded images, and the service environment file below
+it.

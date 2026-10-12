@@ -2,28 +2,35 @@
 set -Eeuo pipefail
 
 APP_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$APP_ROOT/.picture-flashcards.local.env"
-SERVICE_NAME="picture-flashcards.service"
 
-if [[ ! -f "$CONFIG_FILE" ]]; then
-  echo "Update failed: no saved installation was found." >&2
-  echo "Run ./install.sh first." >&2
+fail() {
+  echo "Update failed: $*" >&2
   exit 1
-fi
+}
 
 cd "$APP_ROOT"
+command -v git >/dev/null 2>&1 || fail "Git is required to update this checkout."
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+  || fail "This directory is not a Git checkout; configure an upstream before updating."
 
-if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  echo "Downloading the latest app code..."
-  git pull --ff-only
-else
-  echo "No Git checkout detected; updating the dependencies and build from the current files."
+if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
+  git status --short >&2
+  fail "The working tree has local changes. Commit or safely back them up before updating."
 fi
 
-INSTALL_ARGS=(--use-saved-config --restart-owned)
-if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-  echo "Systemd is running; updates will install and enable $SERVICE_NAME."
-  INSTALL_ARGS+=(--install-service)
-fi
+git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' >/dev/null 2>&1 \
+  || fail "No upstream is configured. Set it explicitly with: git branch --set-upstream-to=REMOTE/BRANCH"
 
-exec "$APP_ROOT/install.sh" "${INSTALL_ARGS[@]}"
+echo "Fetching configured Git remotes..."
+timeout 600 git fetch || fail "Git fetch failed; the application was not stopped."
+echo "Pulling configured upstream changes (fast-forward only)..."
+timeout 600 git pull --ff-only --no-rebase || fail "Git pull failed; the application was not stopped."
+
+[[ -f "$APP_ROOT/.picture-flashcards.local.env" || -f /var/lib/picture-flashcards/picture-flashcards.env ]] \
+  || fail "No saved installation was found. Run ./install.sh first."
+
+echo "Stopping the application before rebuilding..."
+"$APP_ROOT/stop.sh"
+echo "Installing locked dependencies and rebuilding production assets..."
+"$APP_ROOT/install.sh" --use-saved-config --restart-owned --no-start
+echo "Update complete. The service remains stopped; run ./start.sh when ready."

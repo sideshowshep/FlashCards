@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
 import net from "node:net";
 import sharp from "sharp";
@@ -111,18 +111,30 @@ test("rejects occupied ports without affecting the existing listener and shuts d
       background: "#e5533d",
     },
   }).jpeg().toBuffer();
-  await mkdir(path.join(firstDataRoot, "images"), { recursive: true });
-  await writeFile(path.join(firstDataRoot, "images", imageFile), testImage);
-  await writeFile(
-    path.join(firstDataRoot, "cards.json"),
-    JSON.stringify([{ imageFile }]),
-  );
   const first = startApi(port, firstDataRoot);
   let second;
 
   try {
     const response = await waitForHealth(first, port);
     assert.deepEqual(await response.json(), { status: "ok" });
+
+    const emptyCatalogue = await fetch(`http://127.0.0.1:${port}/api/cards`);
+    assert.deepEqual(await emptyCatalogue.json(), []);
+    await stat(path.join(firstDataRoot, "cards.json"));
+    await stat(path.join(firstDataRoot, "images"));
+
+    await mkdir(path.join(firstDataRoot, "images"), { recursive: true });
+    await writeFile(path.join(firstDataRoot, "images", imageFile), testImage);
+    await writeFile(path.join(firstDataRoot, "cards.json"), JSON.stringify([{
+      id: "cache-test",
+      title: "Persistent test card",
+      category: null,
+      imageUrl: `/api/cards/images/${imageFile}`,
+      imageFile,
+      isVisible: true,
+      createdAt: "2026-10-12T00:00:00.000Z",
+      updatedAt: "2026-10-12T00:00:00.000Z",
+    }]));
 
     const home = await fetch(`http://127.0.0.1:${port}/`);
     assert.equal(home.status, 200);
@@ -172,15 +184,66 @@ test("rejects occupied ports without affecting the existing listener and shuts d
       /fetch failed|ECONNREFUSED/,
     );
 
-    const replacement = startApi(port, path.join(testDataRoot, "replacement"));
+    const replacement = startApi(port, firstDataRoot);
     try {
       const replacementResponse = await waitForHealth(replacement, port);
       assert.equal(replacementResponse.status, 200);
+      const persistedCards = await fetch(`http://127.0.0.1:${port}/api/cards`);
+      assert.equal((await persistedCards.json())[0]?.title, "Persistent test card");
     } finally {
       await stopApi(replacement);
     }
   } finally {
     await stopApi(first);
     if (second) await stopApi(second);
+  }
+});
+
+test("preserves migrated catalogue and images and serves them from the persistent root", async () => {
+  const legacyRoot = path.join(testDataRoot, "legacy-update");
+  const persistentRoot = path.join(testDataRoot, "persistent-update");
+  const imageFile = "migrated-card.jpg";
+  const imageBytes = await sharp({
+    create: { width: 8, height: 8, channels: 3, background: "#2d8f65" },
+  }).jpeg().toBuffer();
+  const card = {
+    id: "migrated-card",
+    title: "Existing card",
+    category: "Migration",
+    imageUrl: `/api/cards/images/${imageFile}`,
+    imageFile,
+    isVisible: true,
+    createdAt: "2026-10-12T00:00:00.000Z",
+    updatedAt: "2026-10-12T00:00:00.000Z",
+  };
+  await mkdir(path.join(legacyRoot, "images"), { recursive: true });
+  await mkdir(persistentRoot, { recursive: true });
+  await writeFile(path.join(legacyRoot, "cards.json"), `${JSON.stringify([card])}\n`);
+  await writeFile(path.join(legacyRoot, "images", imageFile), imageBytes);
+
+  const migrationScript = path.resolve(packageRoot, "../../scripts/migrate-persistent-data.sh");
+  execFileSync("bash", [migrationScript, legacyRoot, persistentRoot], { encoding: "utf8" });
+  assert.deepEqual(
+    await readFile(path.join(legacyRoot, "cards.json")),
+    await readFile(path.join(persistentRoot, "cards.json")),
+  );
+  assert.deepEqual(
+    await readFile(path.join(legacyRoot, "images", imageFile)),
+    await readFile(path.join(persistentRoot, "images", imageFile)),
+  );
+
+  const port = await getFreePort();
+  const api = startApi(port, persistentRoot);
+  try {
+    await waitForHealth(api, port);
+    const response = await fetch(`http://127.0.0.1:${port}/api/cards`);
+    assert.equal((await response.json())[0]?.title, card.title);
+    const imageResponse = await fetch(
+      `http://127.0.0.1:${port}/api/cards/images/${imageFile}`,
+    );
+    assert.equal(imageResponse.status, 200);
+    assert.deepEqual(Buffer.from(await imageResponse.arrayBuffer()), imageBytes);
+  } finally {
+    await stopApi(api);
   }
 });

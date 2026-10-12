@@ -32,7 +32,10 @@ export type StoredCard = {
 };
 
 const dataRoot = path.resolve(
-  process.env.FLASHCARDS_DATA_DIR ?? path.join(process.cwd(), "data"),
+  process.env.FLASHCARDS_DATA_DIR
+    ?? (process.env.NODE_ENV === "production"
+      ? "/var/lib/picture-flashcards"
+      : path.join(process.cwd(), "data")),
 );
 const imageRoot = path.join(dataRoot, "images");
 const cardsPath = path.join(dataRoot, "cards.json");

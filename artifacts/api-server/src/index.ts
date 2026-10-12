@@ -27,7 +27,10 @@ const application = process.env["APPLICATION_NAME"] ?? "picture-flashcards-api";
 const instance = process.env["INSTANCE_NAME"] ?? "default";
 const environment = process.env["NODE_ENV"] ?? "development";
 const dataDirectory = path.resolve(
-  process.env["FLASHCARDS_DATA_DIR"] ?? path.join(process.cwd(), "data"),
+  process.env["FLASHCARDS_DATA_DIR"]
+    ?? (environment === "production"
+      ? "/var/lib/picture-flashcards"
+      : path.join(process.cwd(), "data")),
 );
 const automaticStartup = process.env["AUTOMATIC_STARTUP"] ?? "unknown";
 const staticDirectory = process.env["FLASHCARDS_STATIC_DIR"]

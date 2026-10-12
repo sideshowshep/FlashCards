@@ -10,7 +10,7 @@ A local-first educational PWA for building a shared picture flashcard catalogue 
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `FLASHCARDS_DATA_DIR` — optional path for the server's `cards.json` and `images/` folder; defaults to `./data`
+- `FLASHCARDS_DATA_DIR` — data path override; production defaults to `/var/lib/picture-flashcards`, development to `./data`
 - `PORT` or `APP_PORT` — production listener port; the Express server serves both UI and API
 - `WEB_PORT` and `WEB_HOST` — Vite development/preview listener settings
 - `HOST` — Express bind host; local deployments default to `127.0.0.1`, while Replit defaults to `0.0.0.0`
@@ -34,7 +34,7 @@ A local-first educational PWA for building a shared picture flashcard catalogue 
 
 ## Architecture decisions
 
-- Cards are shared across devices by storing metadata in `cards.json` and images in a sibling `images/` directory on the server.
+- Cards are shared across devices by storing metadata in `cards.json` and images in an `images/` directory under the persistent data root.
 - Uploads arrive as base64 data URLs so the browser can submit ordinary image files and HEIC files through one simple JSON endpoint.
 - HEIC images are converted to JPEG on the server with `heic-convert`; JPEG output keeps playback compatible with tablets and browsers.
 - The admin route is intentionally separate from the child playback route, with a subtle adult-access control in playback.
@@ -59,27 +59,26 @@ A local-first educational PWA for building a shared picture flashcard catalogue 
 The supported local deployment uses one listener for the built frontend and the
 Express API. Vite is used only for development and Replit workflows.
 
-Use the launcher as the foreground supervisor, or install its systemd service
-for automatic startup and restart:
+Use the four lifecycle scripts below. Production runs as a systemd service,
+with the API and built frontend sharing one listener:
 
-- `./install.sh --port 5016` — build and run this instance
-- `./install.sh --port 5016 --install-service` — build, install, enable, and start `picture-flashcards.service`
-- `./install.sh --use-saved-config --install-service` — enable systemd using the saved port and host
+- `./install.sh --port 5016` — install locked dependencies, build production assets, and enable the service without starting it
+- `./start.sh` — start the service and verify its health endpoint
+- `./stop.sh` — gracefully stop the service and verify shutdown
+- `./update.sh` — require a clean Git checkout and configured upstream, fetch/pull fast-forward updates, stop, rebuild, and leave the service stopped
 - `./install.sh --print-effective-config` — print hosts, ports, paths, health checks, and startup mode
 - `./install.sh --check` — fail safely if the configured port is occupied
 - `./install.sh --status` — show the owned supervisor, systemd service, and listener
 - `./install.sh --logs` — show recent application logs or systemd journal entries
-- `./install.sh --stop` — stop only this application's managed process or systemd service
 - `./install.sh --uninstall-service` — disable and remove the systemd service
-- `./update.sh` — update and restart only this application's managed service or supervisor
 
-`--install-service` writes `/etc/systemd/system/picture-flashcards.service`,
-enables it at boot, and starts it immediately. The service runs as the invoking
-user, restarts after failures, and uses the saved port, host, data directory,
-and built frontend. `./update.sh` preserves systemd management and automatically
-installs and enables the service when run on a device with systemd. The
-launcher never kills an arbitrary process because a port is occupied; choose
-another `--port` instead.
+Installation writes `/etc/systemd/system/picture-flashcards.service`,
+validates the generated unit with `systemd-analyze verify`, reloads systemd,
+and enables it at boot without starting it. The service runs as the invoking
+user, restarts after failures, and uses the saved port, host, `/var/lib/picture-flashcards` data directory,
+and built frontend. Updates never start the service. The launcher refuses to
+kill an arbitrary process because a port is occupied; choose another `--port`
+instead.
 
 ## Pointers
 

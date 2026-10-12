@@ -1,0 +1,96 @@
+Standardise the Repository Lifecycle Scripts
+
+Inspect this repository and modify it so the application can be installed, updated, started and stopped reliably on a clean, supported Linux machine using exactly four root-level scripts:
+
+* install.sh
+* update.sh
+* start.sh
+* stop.sh
+
+Inspect the existing implementation first. Reuse working logic where appropriate, but tailor the solution to the application’s actual technology stack and production architecture. Do not assume a particular development environment or external deployment platform.
+
+1. install.sh — Install and prepare
+
+* Detect the actual technology stack and production architecture.
+* Install required system packages, runtimes, build tools and dependencies using the appropriate package manager and lockfiles.
+* Build production assets and native components where necessary.
+* Create required directories, permissions and configuration templates without inventing secrets.
+* Initialise databases and prepare persistent storage safely, preserving existing data on reruns.
+* Handle errors explicitly, identifying the failed step and returning a non-zero exit code.
+* Make installation safe to rerun where practical.
+
+Must not start the application or launch persistent background processes.
+
+2. update.sh — Update without starting
+
+* Check the Git working tree, fetch and pull the configured upstream changes before performing application update operations.
+* Never discard uncommitted changes, use destructive resets or overwrite local configuration and secrets.
+* Stop if Git updates cannot be performed safely. If upstream configuration is missing, report it and provide a safe configurable solution rather than guessing.
+* Install dependencies, rebuild assets and apply required migrations safely.
+* Preserve databases, uploads, configuration, secrets and persistent data.
+* Report failures with the relevant stage and a non-zero exit code.
+
+Must not start or restart the application. Do not use git reset --hard, git clean -fd or equivalent destructive operations.
+
+3. start.sh — Start production
+
+* Verify installation, configuration and required production files.
+* Use the actual production entry point and runtime, not a development server.
+* Stop any existing instance using the same process-management mechanism as stop.sh, preventing duplicates without affecting unrelated applications.
+* Set the correct working directory, environment and network binding.
+* Ensure the application runs reliably in a non-interactive environment and that stdout, stderr and startup failures remain observable.
+* Verify that the process remains alive and, where available, check application readiness using an appropriate endpoint or mechanism.
+* Do not report success merely because a background command was submitted or a PID was returned.
+
+4. stop.sh — Stop safely
+
+* Stop all processes belonging to this application, including child processes and workers.
+* Attempt graceful shutdown first, then terminate remaining application-owned processes after a reasonable timeout.
+* Verify shutdown and treat an already-stopped application as success.
+* Never use broad commands such as pkill node, killall node or indiscriminate port-based termination.
+* Never delete application data, configuration, dependencies or databases.
+* Report failures clearly and return a non-zero exit code when safe shutdown cannot be confirmed.
+
+Choose an appropriate process manager, such as a dedicated systemd service where supported, or a reliable application-specific process mechanism. Use the same mechanism in both scripts and do not create competing service definitions.
+
+Systemd requirements
+
+If systemd is used:
+
+* Generate valid unit-file syntax. Follow systemd’s own escaping rules; do not apply generic shell quoting to unit directives.
+* Ensure WorkingDirectory= contains a valid absolute path without literal surrounding quotation marks. Apply the correct syntax to EnvironmentFile=, ExecStart= and other directives as well.
+* Use the actual installation paths and executable locations.
+* Validate the generated unit file with systemd-analyze verify before installing or starting it. Fix validation errors before proceeding.
+* Run systemctl daemon-reload after installing or modifying the unit.
+* Ensure updates cannot silently reintroduce invalid service configuration.
+
+Do not introduce systemd if it is not appropriate for the application.
+
+5. General requirements
+
+* Resolve paths relative to each script’s own location, not the caller’s working directory.
+* Use correct shell quoting and handle paths safely.
+* Avoid unnecessary root privileges and interactive prompts.
+* Use explicit timeouts for operations that could hang.
+* Keep persistent data separate from source code, dependencies, build artefacts and caches where practical.
+* Preserve existing application behaviour and configuration.
+* Inspect existing scripts, services and deployment mechanisms before replacing anything.
+* Consolidate obsolete lifecycle mechanisms only after checking their dependencies.
+* Ensure all four scripts have correct shebangs and executable permissions.
+
+6. Testing and final report
+
+Run appropriate shell syntax checks, inspect executable permissions, run relevant tests and production builds, and verify lifecycle behaviour where the environment permits.
+
+Check that:
+
+* Installation does not start persistent processes.
+* Updates perform Git operations first and do not start or restart the application.
+* Repeated starts do not create duplicate instances.
+* Stop terminates application-owned processes without affecting unrelated processes.
+* Generated systemd units pass validation, if applicable.
+* Existing persistent data is preserved.
+
+Do not run destructive tests against live user data. Do not claim a clean-machine installation or live process-management test unless it was actually performed.
+
+Implement the changes directly in the repository. Report the detected stack, files changed, prerequisites, process-management approach, tests and actual results, plus any unverified assumptions or limitations.
