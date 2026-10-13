@@ -1,0 +1,32 @@
+Implement persistent storage for this application.
+
+1. Identify ALL data that must survive application restarts, updates and redeployment. This includes databases, uploaded files, user-generated content, application state, configuration and any generated secrets required to retain access to existing data.
+
+2. Choose a suitable, dedicated directory for persistent data. You may choose any appropriate absolute path; it does not need to include the application's name.
+
+3. Store ALL required persistent data beneath that single directory. Update the application code and configuration so every component reads and writes persistent data there. Do not leave required persistent data in other locations.
+
+4. Create or update `pifactory.json` in the repository root using this exact JSON structure, replacing the example path with the directory you chose:
+
+{
+  "persistence": "/var/lib/data"
+}
+
+The `persistence` property must be a string containing the absolute path to the chosen directory. The path in `pifactory.json` must exactly match the directory the application actually uses.
+
+5. Ensure the application creates the directory and any required subdirectories automatically. It must work correctly when the directory is initially empty.
+
+6. Keep persistent data separate from source code, dependencies, build output, caches and other regenerable files.
+
+7. Ensure installation and update scripts never delete or overwrite persistent data. If existing data must be moved, implement a safe migration that preserves the original data until the migration is verified. Do not regenerate secrets or encryption keys if doing so would make existing data inaccessible.
+
+8. Test that:
+   - The application works with an empty persistent directory.
+   - All required persistent data is stored beneath the chosen directory.
+   - Data survives an application restart.
+   - Existing data remains accessible after an update.
+   - `pifactory.json` is valid JSON and contains the correct absolute path.
+
+Run the relevant tests, build and typecheck. Report the directory chosen, the data stored there, the files changed and the tests performed. Do not claim persistence across container recreation has been verified unless you have actually tested it.
+
+Make the changes directly in the application repository.
