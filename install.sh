@@ -42,7 +42,7 @@ run_timed() {
   local status
   shift 2
   echo "Picture Flashcards: $label (timeout: ${duration}s)"
-  if timeout --kill-after=30 "$duration" "$@"; then
+  if timeout --foreground --kill-after=30 "$duration" "$@"; then
     return 0
   else
     status=$?
