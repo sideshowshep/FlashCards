@@ -36,6 +36,25 @@ fail() {
   exit 1
 }
 
+run_timed() {
+  local label="$1"
+  local duration="$2"
+  local status
+  shift 2
+  echo "Picture Flashcards: $label (timeout: ${duration}s)"
+  if timeout --kill-after=30 "$duration" "$@"; then
+    return 0
+  else
+    status=$?
+  fi
+  if (( status == 124 )); then
+    echo "Picture Flashcards: timed out during $label after ${duration}s." >&2
+  else
+    echo "Picture Flashcards: $label failed with exit code $status." >&2
+  fi
+  return "$status"
+}
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -251,7 +270,7 @@ ensure_runtime() {
     PNPM_CMD=(pnpm)
   elif command -v npm >/dev/null 2>&1; then
     echo "Installing the lockfile-pinned pnpm version..."
-    privileged_run npm install --global pnpm@10.26.1
+    run_timed "installing pinned pnpm" 1800 privileged_run npm install --global pnpm@10.26.1
     PNPM_CMD=(pnpm)
   else
     fail "npm, pnpm, or Corepack is required."
@@ -260,11 +279,11 @@ ensure_runtime() {
 
 systemd_run() {
   if (( EUID == 0 )); then
-    timeout 90 systemctl "$@"
+    run_timed "systemctl $*" 120 systemctl "$@"
     return
   fi
   command -v sudo >/dev/null 2>&1 || fail "sudo is required to manage $SERVICE_NAME."
-  timeout 90 sudo systemctl "$@"
+  run_timed "systemctl $*" 120 sudo systemctl "$@"
 }
 
 privileged_run() {
@@ -282,10 +301,10 @@ systemd_available() {
 
 apt_run() {
   if (( EUID == 0 )); then
-    timeout 900 env DEBIAN_FRONTEND=noninteractive apt-get "$@"
+    run_timed "apt-get $*" 1800 env DEBIAN_FRONTEND=noninteractive apt-get "$@"
   else
     command -v sudo >/dev/null 2>&1 || fail "sudo is required to install system packages."
-    timeout 900 sudo env DEBIAN_FRONTEND=noninteractive apt-get "$@"
+    run_timed "apt-get $*" 1800 sudo env DEBIAN_FRONTEND=noninteractive apt-get "$@"
   fi
 }
 
@@ -743,17 +762,17 @@ show_logs() {
 install_dependencies_and_build() {
   cd "$APP_ROOT"
   echo "Installing workspace dependencies locally..."
-  timeout 1800 "${PNPM_CMD[@]}" install --frozen-lockfile
+  run_timed "installing locked workspace dependencies" 3600 "${PNPM_CMD[@]}" install --frozen-lockfile
   echo "Building shared workspace libraries..."
-  timeout 900 "${PNPM_CMD[@]}" run typecheck:libs
+  run_timed "typechecking shared libraries" 1800 "${PNPM_CMD[@]}" run typecheck:libs
   echo "Checking the API and frontend..."
-  timeout 900 "${PNPM_CMD[@]}" --filter @workspace/api-server run typecheck
-  timeout 900 "${PNPM_CMD[@]}" --filter @workspace/picture-flashcards run typecheck
+  run_timed "typechecking the API" 1800 "${PNPM_CMD[@]}" --filter @workspace/api-server run typecheck
+  run_timed "typechecking the frontend" 1800 "${PNPM_CMD[@]}" --filter @workspace/picture-flashcards run typecheck
   echo "Building the frontend..."
   WEB_PORT="$PORT" WEB_HOST="$HOST" BASE_PATH=/ \
-    timeout 1200 "${PNPM_CMD[@]}" --filter @workspace/picture-flashcards run build
+    run_timed "building the frontend" 1800 "${PNPM_CMD[@]}" --filter @workspace/picture-flashcards run build
   echo "Building the API..."
-  timeout 1200 "${PNPM_CMD[@]}" --filter @workspace/api-server run build
+  run_timed "building the API" 1800 "${PNPM_CMD[@]}" --filter @workspace/api-server run build
 }
 
 start_managed_app() {
