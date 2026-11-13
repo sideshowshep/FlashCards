@@ -24,6 +24,7 @@ export function FittedSingleLineTitle({
     const title = titleRef.current;
     if (!title) return;
 
+    let active = true;
     const fitTitle = () => {
       const availableWidth = title.clientWidth;
       if (availableWidth < 1) return;
@@ -32,15 +33,14 @@ export function FittedSingleLineTitle({
       title.style.overflow = 'visible';
       title.style.textOverflow = 'clip';
       let nextFontSize = maxFontSize;
-      for (let attempt = 0; attempt < 8; attempt += 1) {
+      for (let attempt = 0; attempt < 12; attempt += 1) {
         title.style.fontSize = `${nextFontSize}px`;
         if (title.scrollWidth <= availableWidth || nextFontSize <= minFontSize) break;
         nextFontSize = Math.max(
           minFontSize,
-          nextFontSize * (availableWidth / title.scrollWidth),
+          nextFontSize * (availableWidth / title.scrollWidth) * 0.98,
         );
       }
-      title.style.whiteSpace = 'normal';
       title.style.fontSize = `${nextFontSize}px`;
       setFontSize(nextFontSize);
     };
@@ -53,9 +53,17 @@ export function FittedSingleLineTitle({
       ? undefined
       : new ResizeObserver(fitTitle);
     observer?.observe(title.parentElement ?? title);
+    observer?.observe(title);
+    const onFontsLoaded = () => {
+      if (active) fitTitle();
+    };
+    document.fonts?.ready.then(onFontsLoaded);
+    document.fonts?.addEventListener('loadingdone', onFontsLoaded);
     return () => {
+      active = false;
       if (frameId !== undefined) window.cancelAnimationFrame(frameId);
       observer?.disconnect();
+      document.fonts?.removeEventListener('loadingdone', onFontsLoaded);
     };
   }, [maxFontSize, minFontSize, text]);
 
@@ -64,7 +72,7 @@ export function FittedSingleLineTitle({
   return (
     <Tag
       ref={titleRef}
-      className={`${className} break-words overflow-visible whitespace-normal`}
+      className={`${className} block min-w-0 overflow-visible whitespace-nowrap`}
       style={{ fontSize }}
       data-testid={testId}
     >

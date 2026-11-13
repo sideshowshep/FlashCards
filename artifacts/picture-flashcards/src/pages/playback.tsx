@@ -319,10 +319,10 @@ export default function Playback() {
                   {card.category && <span className="absolute left-4 top-4 rounded-full bg-[hsl(var(--card)/.9)] px-3 py-1.5 font-mono text-[0.6rem] font-bold uppercase tracking-[0.13em] text-[hsl(var(--primary))]">{card.category}</span>}
                 </div>
                 <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-7">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="mb-1 font-mono text-[0.6rem] font-bold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">Picture card</p>
                     {selectedTextCase !== 'none' && (
-                      <FittedSingleLineTitle text={formatCardText(card.title, selectedTextCase)} level={2} maxFontSize={40} minFontSize={18} className="max-w-full font-serif font-semibold tracking-[-0.045em]" testId={`text-playback-title-${card.id}`} />
+                      <FittedSingleLineTitle text={formatCardText(card.title, selectedTextCase)} level={2} maxFontSize={40} minFontSize={18} className="w-full max-w-full font-serif font-semibold tracking-[-0.045em]" testId={`text-playback-title-${card.id}`} />
                     )}
                   </div>
                   <div className="flex items-center gap-2">
